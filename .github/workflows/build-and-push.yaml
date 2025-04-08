@@ -8,16 +8,18 @@ on:
       - Dockerfile.alpine3.21
       - Dockerfile.bookworm
       - Dockerfile.bookworm-slim
-      - .github/workflows/build-and-push.yml
+      - .github/workflows/build-and-push.yaml
     tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
       - 'v*.*.*'
   release:   # 发布新的 release 时触发
     types:
       - published
+  schedule:   # 每月 1 日和 15 日 00:00 UTC 自动触发
+    - cron: '0 0 1,15 * *'
   workflow_dispatch:   # 手动触发
 
 jobs:
-  build-and-push:
+  buildAndPush:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,6 +34,10 @@ jobs:
           - variant: bookworm-slim
             platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/mips64le
     steps:
+      - name: Check event source
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -74,37 +80,53 @@ jobs:
         run: |
           TAGS=""
           SHA=git-${{ steps.sha-short.outputs.SHA_SHORT }}
-          DOCKERHUB=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/network-helper
-          GHCR=ghcr.io/${{ steps.owner-lowercase.outputs.OWNER_LOWERCASE }}/network-helper
+          DOCKERHUB_URL=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/network-helper
+          GHCR_URL=ghcr.io/${{ steps.owner-lowercase.outputs.OWNER_LOWERCASE }}/network-helper
 
           case "${{ matrix.variant }}" in
             alpine3.21)
-              TAGS="${TAGS},${DOCKERHUB}:${SHA}-alpine"
-              TAGS="${TAGS},${DOCKERHUB}:alpine"
-              TAGS="${TAGS},${DOCKERHUB}:alpine3.21"
-              TAGS="${TAGS},${DOCKERHUB}:latest-alpine"
-              TAGS="${TAGS},${DOCKERHUB}:latest-alpine3.21"
+              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-alpine"
+              TAGS="${TAGS},${DOCKERHUB_URL}:alpine"
+              TAGS="${TAGS},${DOCKERHUB_URL}:alpine3.21"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine3.21"
+              TAGS="${TAGS},${GHCR_URL}:${SHA}-alpine"
+              TAGS="${TAGS},${GHCR_URL}:alpine"
+              TAGS="${TAGS},${GHCR_URL}:alpine3.21"
+              TAGS="${TAGS},${GHCR_URL}:latest-alpine"
+              TAGS="${TAGS},${GHCR_URL}:latest-alpine3.21"
               ;;
             bookworm-slim)
-              TAGS="${TAGS},${DOCKERHUB}:${SHA}-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB}:debian-slim"
-              TAGS="${TAGS},${DOCKERHUB}:bookworm-slim"
-              TAGS="${TAGS},${DOCKERHUB}:latest-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB}:latest-bookworm-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:debian-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:bookworm-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-bookworm-slim"
+              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian-slim"
+              TAGS="${TAGS},${GHCR_URL}:debian-slim"
+              TAGS="${TAGS},${GHCR_URL}:bookworm-slim"
+              TAGS="${TAGS},${GHCR_URL}:latest-debian-slim"
+              TAGS="${TAGS},${GHCR_URL}:latest-bookworm-slim"
               ;;
             bookworm)
-              TAGS="${TAGS},${DOCKERHUB}:${SHA}-debian"
-              TAGS="${TAGS},${DOCKERHUB}:debian"
-              TAGS="${TAGS},${DOCKERHUB}:bookworm"
-              TAGS="${TAGS},${DOCKERHUB}:latest-debian"
-              TAGS="${TAGS},${DOCKERHUB}:latest-bookworm"
-              TAGS="${TAGS},${DOCKERHUB}:latest"
+              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian"
+              TAGS="${TAGS},${DOCKERHUB_URL}:debian"
+              TAGS="${TAGS},${DOCKERHUB_URL}:bookworm"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-bookworm"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest"
+              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian"
+              TAGS="${TAGS},${GHCR_URL}:debian"
+              TAGS="${TAGS},${GHCR_URL}:bookworm"
+              TAGS="${TAGS},${GHCR_URL}:latest-debian"
+              TAGS="${TAGS},${GHCR_URL}:latest-bookworm"
+              TAGS="${TAGS},${GHCR_URL}:latest"
               ;;
           esac
 
           # 通用 tag
-          TAGS="${TAGS},${DOCKERHUB}:${SHA}-${{ matrix.variant }}"
-          TAGS="${TAGS},${GHCR}:${SHA}-${{ matrix.variant }}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${{ matrix.variant }}"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${{ matrix.variant }}"
 
           # 格式化为多行
           echo "tags<<EOF" >> $GITHUB_OUTPUT
