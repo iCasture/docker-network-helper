@@ -1,0 +1,31 @@
+name: Sync README to Docker Hub
+
+on:
+  push:
+    branches:
+      - master
+    paths:   # 相关文件改动时触发
+      - README.md
+      - .github/workflows/sync-dockerhub-description.yml
+    tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
+      - 'v*.*.*'
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  dockerHubDescription:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update Docker Hub README
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/network-helper
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./README.md
