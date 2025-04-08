@@ -1,4 +1,4 @@
-name: Sync README to Docker Hub
+name: Sync Docker Hub Description
 
 on:
   push:
@@ -6,18 +6,24 @@ on:
       - master
     paths:   # 相关文件改动时触发
       - README.md
-      - .github/workflows/sync-dockerhub-description.yml
+      - .github/workflows/sync-dockerhub-description.yaml
     tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
       - 'v*.*.*'
-  release:
+  release:   # 发布新的 release 时触发
     types:
       - published
-  workflow_dispatch:
+  schedule:   # 每月 1 日和 15 日 00:00 UTC 自动触发
+    - cron: '0 0 1,15 * *'
+  workflow_dispatch:   # 手动触发
 
 jobs:
   dockerHubDescription:
     runs-on: ubuntu-latest
     steps:
+      - name: Check event source
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
