@@ -87,13 +87,41 @@ services:
   network-helper:
     image: ghcr.io/icasture/network-helper:git-abcdef12-alpine3.21
     container_name: network-helper
-    ports:  # Optional
-      - '9001:9001'
+    ports:  # 可选, 用于将某些端口暴露给宿主机
+      - '34567:5432'
     networks:
       - global-network-helper-net
+      - global-postgres-vector-net
 
 networks:
   global-network-helper-net:
     name: global-network-helper-net
     driver: bridge
+  global-postgres-vector-net:
+    external: true
 ```
+
+通过上述配置，即可将 `network-helper` 容器加入 `global-network-helper-net` 和 `global-postgres-vector-net` (`external`) 网络中，其作用包括：
+
+1. 无需额外配置即可访问同网络中未暴露的端口
+
+    容器可以直接访问 `global-postgres-vector-net` 网络中其他容器未通过 `ports` 暴露的端口，无需在该容器或目标容器中额外设置端口映射。
+
+    > `network-helper` 本身可作为网络调试容器，内置如 `curl`、`ping` 等基础工具，也可自行安装 `psql` 等客户端，用于测试服务连通性或排查网络策略。
+
+    例如，通过上述配置，`network-helper` 可以直接访问 `global-postgres-vector-net` 网络中某个 PostgreSQL 容器的 `5432` 端口，无需在目标容器或本容器中添加额外配置（不需要上面的那条 `ports` 命令）。
+
+2. 集中管理端口映射规则
+
+    可选地通过 `ports` 指令将目标网络中某些端口映射至宿主机，避免在多个 `compose.yaml` 文件中分别配置，实现统一管理。例如，以下配置：
+
+    ```yaml
+    ports:  # 可选, 将某些端口暴露给宿主机
+      - '34567:5432'
+    ```
+
+    表示将 `global-postgres-vector-net` 网络中容器开放的 `5432` 端口映射至宿主机的 `34567` 端口。
+
+3. 实现跨 Compose 项目通信
+
+    将多个 Compose 项目同时加入同一个网络（例如上面的 `global-network-helper-net` 网络），可以打破默认的网络隔离，实现跨服务、跨 Compose 的互联互通。
