@@ -1,6 +1,6 @@
 # [Network Helper Docker Image](https://github.com/iCasture/docker-network-helper)
 
-该仓库用于构建并发布 Network Helper 镜像，支持三种不同的发行版：
+该仓库用于构建并发布 Network Helper 镜像，支持四种不同的发行版：
 
 - Alpine (`alpine:3.22`)
 
@@ -8,61 +8,234 @@
 
 - Debian-slim (`debian:trixie-slim`)
 
+- Ubuntu (`ubuntu:24.04`)
+
 支持以下平台：
 
 - `amd64`
-
-- `i386`
 
 - `arm32v7`
 
 - `arm64v8`
 
-- ~~`mips64le`~~（Alpine 官方镜像不支持 `mips64le`；Debian `trixie` 官方镜像也暂不支持 `mips64le`）
-
 - `riscv64`
 
-这些镜像均预装了常用网络工具，例如：
+- `i386` (仅 Alpine / Debian 版本支持，Ubuntu 官方镜像不支持 `i386`)
 
-- `bash`
+- ~~`mips64le`~~ ( Alpine / Ubuntu 官方镜像不支持 `mips64le`；Debian 从 `trixie` 起也不支持)
 
-- `curl`
+## 1. 镜像版本
 
-- `ping` (`iputils-ping`)
+### 1.1. Basic 版本（默认）
 
-- `netstat`（`net-tools`）
+包含最常用的网络调试工具，镜像体积最小，启动速度最快：
 
-- `tcpdump`
+**基础系统工具：**
 
-- `dig` / `nslookup`（`bind-tools` 或 `dnsutils`）
+- `bash` - Shell 环境
 
-- `procps`（用于监控）
+- `ca-certificates` - SSL / TLS 证书支持
 
-- `coreutils`（Alpine 环境下）
+- `coreutils` & `busybox-extras` (Alpine) - 基础工具集
 
-## 1. Tag
+**核心网络工具：**
 
-格式为：
+- `curl` - HTTP 客户端
+
+- `dig` / `nslookup` (`bind-tools` 或 `dnsutils`) - 基础 DNS 查询
+
+- `nc` (`netcat-openbsd`) - 网络调试瑞士军刀
+
+- `netstat` (`net-tools`) - 网络连接查看
+
+- `ping` (`iputils-ping`) - 连通性测试
+
+- `telnet` - 端口连通性测试 (仅 Debian；Alpine 下包含在 busybox-extras 中)
+
+- `wget` - 下载工具
+
+### 1.2. Standard 版本
+
+在 Basic 版本基础上，增加高级网络诊断和性能测试工具：
+
+**高级网络工具：**
+
+- `ethtool` - 网络接口配置和诊断
+
+- `iperf3` - 网络性能测试
+
+- `iproute2` - 现代网络工具集 (`ip`, `ss`, `tc` 等)
+
+- `lsof` - 查看进程打开的文件和网络连接
+
+- `openssl` - SSL / TLS 连接测试工具
+
+- `tcpdump` - 网络包捕获
+
+**系统工具：**
+
+- `jq` - JSON 处理工具
+
+- `procps` - 系统监控
+
+### 1.3. Advanced 版本
+
+在 Standard 版本基础上，增加安全分析和高级监控工具：
+
+**安全和分析工具：**
+
+- `dnsx` - 快速多用途 DNS 工具包
+
+- `knot` - 现代 DNS 工具集，提供 `kdig`（`dig` 的增强替代）、`khost`、`knsupdate` 等工具
+
+- `mitmproxy` - HTTP / HTTPS 代理工具，用于拦截、检查和修改 Web 流量 (仅支持 `amd64` 和 `arm64v8` 的 Debian / Ubuntu 镜像，其它镜像下为占位符)
+
+- `nmap` - 端口扫描和网络发现
+
+- `socat` - 网络数据转发工具
+
+- `tshark` - Wireshark 命令行工具，深度包分析
+
+**监控和诊断工具：**
+
+- `iftop` - 网络流量监控
+
+- `mtr` - 网络诊断工具 (`traceroute` + `ping` 组合)
+
+- `traceroute` - 路由跟踪
+
+- `whois` - 域名信息查询工具
+
+**系统和管理工具：**
+
+- `htop` - 增强版系统监控
+
+- `openssh-client` - SSH 客户端
+
+- `rsync` - 文件同步工具
+
+- `vim` - 文本编辑器
+
+### 1.4. 版本选择指导
+
+| 使用场景      | 推荐版本  | 说明                   |
+|--------------|----------|------------------ ----|
+| 基础连通性测试 | Basic    | 最小体积，快速启动       |
+| 网络性能调优   | Standard | 包含性能测试工具        |
+| 安全审计分析   | Advanced | 完整的安全工具集        |
+| CI/CD 环境    | Basic    | 减少构建时间和存储空间   |
+| 生产环境调试   | Standard  | 平衡功能和体积         |
+| 渗透测试      | Advanced  | 专业安全工具           |
+
+## 2. 镜像标签
+
+### 2.1. 标签格式
+
+标签格式为：
 
 ```text
-git-<commit-hash>-<variant>
+git-<commit-hash>-<variant>[-<target>]
 ```
 
-- `debian`, `trixie`, `latest-debian`, `latest-trixie`, `latest`
+其中：
 
-- `git-xxxxxxx-debian`, `git-xxxxxxx-trixie`
+- `<variant>`: `alpine`, `alpine3.22`, `debian`, `trixie`, `debian-slim`, `trixie-slim`, `ubuntu`, `ubuntu24.04`
 
-- `debian-slim`, `trixie-slim`, `latest-debian-slim`, `latest-trixie-slim`
+- `<target>`: `basic`（默认，可省略）, `standard`, `advanced`
 
-- `git-xxxxxxx-debian-slim`, `git-xxxxxxx-trixie-slim`
+### 2.2. Basic 版本标签（默认）
+
+**Alpine Basic:**
 
 - `alpine`, `alpine3.22`, `latest-alpine`, `latest-alpine3.22`
 
 - `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.22`
 
-## 2. 镜像构建
+**Debian Basic:**
 
-镜像通过 GitHub Actions 自动构建并推送至 GitHub Container Registry (ghcr.io) 和 Docker Hub (docker.io)。
+- `debian`, `trixie`, `latest-debian`, `latest-trixie`
+
+- `git-xxxxxxx-debian`, `git-xxxxxxx-trixie`
+
+**Debian-slim Basic:**
+
+- `debian-slim`, `trixie-slim`, `latest-debian-slim`, `latest-trixie-slim`
+
+- `git-xxxxxxx-debian-slim`, `git-xxxxxxx-trixie-slim`
+
+**Ubuntu Basic:**
+
+- `ubuntu`, `ubuntu24.04`, `latest-ubuntu`, `latest-ubuntu24.04`, `latest`
+
+- `git-xxxxxxx-ubuntu`, `git-xxxxxxx-ubuntu24.04`
+
+### 2.3. Standard 版本标签
+
+Standard 版本包含更多网络诊断和性能测试工具：
+
+**Alpine Standard:**
+
+- `alpine-standard`, `alpine3.22-standard`, `latest-alpine-standard`, `latest-alpine3.22-standard`
+
+- `git-xxxxxxx-alpine-standard`, `git-xxxxxxx-alpine3.22-standard`
+
+**Debian Standard:**
+
+- `debian-standard`, `trixie-standard`, `latest-debian-standard`, `latest-trixie-standard`
+
+- `git-xxxxxxx-debian-standard`, `git-xxxxxxx-trixie-standard`
+
+**Debian-slim Standard:**
+
+- `debian-slim-standard`, `trixie-slim-standard`, `latest-debian-slim-standard`, `latest-trixie-slim-standard`
+
+- `git-xxxxxxx-debian-slim-standard`, `git-xxxxxxx-trixie-slim-standard`
+
+**Ubuntu Standard:**
+
+- `ubuntu-standard`, `ubuntu24.04-standard`, `latest-ubuntu-standard`, `latest-ubuntu24.04-standard`
+
+- `git-xxxxxxx-ubuntu-standard`, `git-xxxxxxx-ubuntu24.04-standard`
+
+### 2.4. Advanced 版本标签
+
+Advanced 版本包含完整的安全分析和高级监控工具：
+
+**Alpine Advanced:**
+
+- `alpine-advanced`, `alpine3.22-advanced`, `latest-alpine-advanced`, `latest-alpine3.22-advanced`
+
+- `git-xxxxxxx-alpine-advanced`, `git-xxxxxxx-alpine3.22-advanced`
+
+**Debian Advanced:**
+
+- `debian-advanced`, `trixie-advanced`, `latest-debian-advanced`, `latest-trixie-advanced`
+
+- `git-xxxxxxx-debian-advanced`, `git-xxxxxxx-trixie-advanced`
+
+**Debian-slim Advanced:**
+
+- `debian-slim-advanced`, `trixie-slim-advanced`, `latest-debian-slim-advanced`, `latest-trixie-slim-advanced`
+
+- `git-xxxxxxx-debian-slim-advanced`, `git-xxxxxxx-trixie-slim-advanced`
+
+**Ubuntu Advanced:**
+
+- `ubuntu-advanced`, `ubuntu24.04-advanced`, `latest-ubuntu-advanced`, `latest-ubuntu24.04-advanced`
+
+- `git-xxxxxxx-ubuntu-advanced`, `git-xxxxxxx-ubuntu24.04-advanced`
+
+## 3. 镜像构建
+
+镜像通过 GitHub Actions 自动构建并推送至 GitHub Container Registry (ghcr.io) 和 Docker Hub (docker.io)。支持从两个注册表拉取镜像：
+
+```bash
+# GitHub Container Registry
+docker pull ghcr.io/icasture/network-helper:ubuntu24.04-standard
+
+# Docker Hub
+docker pull icasture/network-helper:ubuntu24.04-standard
+```
 
 注意：
 
@@ -78,20 +251,75 @@ git-<commit-hash>-<variant>
 
     可以事先建立好「公开 (Public)」仓库来解决（或更改 Docker Hub 账号的 Default repository privacy 设置）。
 
-## 3. 使用示例
+## 4. 使用示例
 
-下面是一个 `compose.yml` 示例配置：
+### 4.1. Basic 版本使用示例
+
+适合基础网络调试和连通性测试：
 
 ```yaml
 services:
   network-helper:
-    image: ghcr.io/icasture/network-helper:git-abcdef12-alpine3.22
-    container_name: network-helper
+    image: ghcr.io/icasture/network-helper:latest  # Ubuntu Basic 版本 (默认)
+    # 或者明确指定: ghcr.io/icasture/network-helper:ubuntu24.04
+    container_name: network-helper-basic
     ports:  # 可选, 用于将某些端口暴露给宿主机
       - '34567:5432'
     networks:
       - global-network-helper-net
       - global-postgres-vector-net
+
+networks:
+  global-network-helper-net:
+    name: global-network-helper-net
+    driver: bridge
+  global-postgres-vector-net:
+    external: true
+```
+
+### 4.2. Standard 版本使用示例
+
+适合网络性能测试和深度诊断：
+
+```yaml
+services:
+  network-helper-standard:
+    image: ghcr.io/icasture/network-helper:ubuntu24.04-standard
+    container_name: network-helper-standard
+    ports:
+      - '34567:5432'
+      - '5201:5201'  # iperf3 性能测试端口
+    networks:
+      - global-network-helper-net
+      - global-postgres-vector-net
+
+networks:
+  global-network-helper-net:
+    name: global-network-helper-net
+    driver: bridge
+  global-postgres-vector-net:
+    external: true
+```
+
+### 4.3. Advanced 版本使用示例
+
+适合安全分析和高级网络监控：
+
+```yaml
+services:
+  network-helper-advanced:
+    image: ghcr.io/icasture/network-helper:ubuntu24.04-advanced
+    container_name: network-helper-advanced
+    ports:
+      - '34567:5432'
+      - '8080:8080'  # mitmproxy Web 界面
+      - '8081:8081'  # mitmproxy 代理端口
+    networks:
+      - global-network-helper-net
+      - global-postgres-vector-net
+    cap_add:
+      - NET_ADMIN  # 某些高级网络工具需要额外权限
+    privileged: false  # 根据需要启用
 
 networks:
   global-network-helper-net:

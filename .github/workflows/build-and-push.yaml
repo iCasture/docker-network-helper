@@ -4,35 +4,66 @@ on:
   push:
     branches:
       - master
-    paths:   # 相关文件改动时触发
-      - Dockerfile.alpine3.22
-      - Dockerfile.trixie
-      - Dockerfile.trixie-slim
+    paths:   # Trigger on changes to relevant files
+      - Dockerfile.alpine
+      - Dockerfile.debian
+      - Dockerfile.debian-slim
+      - Dockerfile.ubuntu
       - .github/workflows/build-and-push.yaml
-    tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
+    tags:   # Trigger when tags are created. Match format like v1.2.3 (semantic versioning).
       - 'v*.*.*'
-  release:   # 发布新的 release 时触发
+  release:   # Trigger when a new release is published
     types:
       - published
-  schedule:   # 每月 1 日和 15 日 00:00 UTC 自动触发
+  schedule:   # Auto-trigger on 1st and 15th of each month at 00:00 UTC
     - cron: '0 0 1,15 * *'
-  workflow_dispatch:   # 手动触发
+  workflow_dispatch:   # Manual trigger
 
 jobs:
-  buildAndPush:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: mk
+        name: Build matrix JSON from params
+        run: |
+          params=$(cat .github/build-params.json)
+          alpineBaseVersion=$(jq -r '.alpineVersion' <<<"$params")
+          debianBaseVersion=$(jq -r '.debianVersion' <<<"$params")
+          ubuntuBaseVersion=$(jq -r '.ubuntuVersion' <<<"$params")
+          alpinePlatforms=$(jq -r '.alpinePlatforms' <<<"$params")
+          debianPlatforms=$(jq -r '.debianPlatforms' <<<"$params")
+          ubuntuPlatforms=$(jq -r '.ubuntuPlatforms' <<<"$params")
+
+          matrix=$(jq -n --arg alpineBaseVersion "$alpineBaseVersion" \
+                         --arg debianBaseVersion "$debianBaseVersion" \
+                         --arg ubuntuBaseVersion "$ubuntuBaseVersion" \
+                         --arg alpinePlatforms "$alpinePlatforms" \
+                         --arg debianPlatforms "$debianPlatforms" \
+                         --arg ubuntuPlatforms "$ubuntuPlatforms" \
+            '{include: [
+              { "variant": ("alpine" + $alpineBaseVersion),  "base-type": "alpine",      "platforms":$alpinePlatforms },
+              { "variant": $debianBaseVersion,               "base-type": "debian",      "platforms":$debianPlatforms },
+              { "variant": ($debianBaseVersion + "-slim"),   "base-type": "debian-slim", "platforms":$debianPlatforms },
+              { "variant": $ubuntuBaseVersion,               "base-type": "ubuntu",      "platforms":$ubuntuPlatforms }
+            ]}')
+
+          {
+            echo "matrix<<EOF"
+            echo "$matrix"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+  build-and-push-basic:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    needs: prepare
     strategy:
-      matrix:
-        include:
-          - variant: alpine3.22
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
-          - variant: trixie
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
-          - variant: trixie-slim
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Check event source
         run: |
@@ -41,105 +72,170 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # docker/setup-qemu-action should come before docker/setup-buildx-action
-      - name: Set up QEMU for cross-platform builds
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker build environment
+        uses: ./.github/actions/setup-docker
         with:
           platforms: all
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Check QEMU binfmt
-        run: ls /proc/sys/fs/binfmt_misc | grep qemu
-
-      - name: Log in to GitHub Container Registry (ghcr.io)
-        uses: docker/login-action@v3
+      - name: Log in to registries
+        uses: ./.github/actions/login-registries
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      - name: Set build metadata
+        id: set-build-metadata
+        uses: ./.github/actions/set-build-metadata
+
+      - name: Set image tags for basic
+        id: set-tags-basic
+        uses: ./.github/actions/set-image-tags
         with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          variant: ${{ matrix.variant }}
+          base-type: ${{ matrix['base-type'] }}
+          target: basic
+          sha: ${{ steps.set-build-metadata.outputs['sha-short'] }}
+          owner-lowercase: ${{ steps.set-build-metadata.outputs['owner-lowercase'] }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
 
-      - name: Set lowercase repo owner
-        id: owner-lowercase
-        run: echo "OWNER_LOWERCASE=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Get short Git SHA
-        id: sha-short
-        run: echo "SHA_SHORT=$(echo ${GITHUB_SHA:0:7})" >> $GITHUB_OUTPUT
-
-      - name: Set image tags
-        id: set-tags
-        run: |
-          TAGS=""
-          SHA=git-${{ steps.sha-short.outputs.SHA_SHORT }}
-          DOCKERHUB_URL=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/network-helper
-          GHCR_URL=ghcr.io/${{ steps.owner-lowercase.outputs.OWNER_LOWERCASE }}/network-helper
-
-          case "${{ matrix.variant }}" in
-            alpine3.22)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:alpine3.22"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine3.22"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-alpine"
-              TAGS="${TAGS},${GHCR_URL}:alpine"
-              TAGS="${TAGS},${GHCR_URL}:alpine3.22"
-              TAGS="${TAGS},${GHCR_URL}:latest-alpine"
-              TAGS="${TAGS},${GHCR_URL}:latest-alpine3.22"
-              ;;
-            trixie-slim)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:trixie-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie-slim"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:trixie-slim"
-              TAGS="${TAGS},${GHCR_URL}:latest-debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:latest-trixie-slim"
-              ;;
-            trixie)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:trixie"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian"
-              TAGS="${TAGS},${GHCR_URL}:debian"
-              TAGS="${TAGS},${GHCR_URL}:trixie"
-              TAGS="${TAGS},${GHCR_URL}:latest-debian"
-              TAGS="${TAGS},${GHCR_URL}:latest-trixie"
-              TAGS="${TAGS},${GHCR_URL}:latest"
-              ;;
-          esac
-
-          # 通用 tag
-          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${{ matrix.variant }}"
-          TAGS="${TAGS},${GHCR_URL}:${SHA}-${{ matrix.variant }}"
-
-          # 格式化为多行
-          echo "tags<<EOF" >> $GITHUB_OUTPUT
-          echo "${TAGS#,}" | tr ',' '\n' >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Build and push Docker image
+      - name: Build and push Docker image (basic version)
         uses: docker/build-push-action@v6
         with:
-          context: .                                 # Build context is current directory
-          file: ./Dockerfile.${{ matrix.variant }}   # Use the variant-specific Dockerfile
-          pull: true                                 # Always pull the latest base image
-          no-cache: true                             # Disable all layers cache during build
-          push: true                                 # Push the image to registry after build
-          platforms: ${{ matrix.platforms }}         # Target multi-platform builds
-          tags: ${{ steps.set-tags.outputs.tags }}
+          context: .                                          # Build context is current directory
+          file: ./Dockerfile.${{ matrix['base-type'] }}       # Use the variant-specific Dockerfile
+          target: basic                                       # Build basic target only
+          pull: true                                          # Always pull the latest base image
+          push: true                                          # Push the image to registry after build
+          platforms: ${{ matrix.platforms }}                  # Target multi-platform builds
+          tags: ${{ steps.set-tags-basic.outputs.tags }}
+          cache-from: type=gha,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-to:   type=gha,mode=max,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          build-args: |                                       # Force rebuild each workflow run by using BUILD_EPOCH as a cache-busting argument
+            MAINTAINER=${{ steps.set-build-metadata.outputs['owner'] }}
+            DISTRO=${{ matrix['base-type'] }}
+            DISTRO_VERSION=${{ matrix.variant }}
+            PLATFORMS=${{ matrix.platforms }}
+            BUILD_TARGET=basic
+            BUILD_TIMESTAMP=${{ steps.set-build-metadata.outputs['timestamp'] }}
+            BUILD_EPOCH=${{ github.run_id }}-${{ github.run_attempt }}
+            GIT_COMMIT=${{ steps.set-build-metadata.outputs['sha-short'] }}
+
+  build-and-push-standard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs: [prepare, build-and-push-basic]
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check event source
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker build environment
+        uses: ./.github/actions/setup-docker
+        with:
+          platforms: all
+
+      - name: Log in to registries
+        uses: ./.github/actions/login-registries
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set build metadata
+        id: set-build-metadata
+        uses: ./.github/actions/set-build-metadata
+
+      - name: Set image tags for standard
+        id: set-tags-standard
+        uses: ./.github/actions/set-image-tags
+        with:
+          variant: ${{ matrix.variant }}
+          base-type: ${{ matrix['base-type'] }}
+          target: standard
+          sha: ${{ steps.set-build-metadata.outputs['sha-short'] }}
+          owner-lowercase: ${{ steps.set-build-metadata.outputs['owner-lowercase'] }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Build and push Docker image (standard version)
+        uses: docker/build-push-action@v6
+        with:
+          context: .                                          # Build context is current directory
+          file: ./Dockerfile.${{ matrix['base-type'] }}       # Use the variant-specific Dockerfile
+          target: standard                                    # Build standard target
+          pull: true                                          # Always pull the latest base image
+          push: true                                          # Push the image to registry after build
+          platforms: ${{ matrix.platforms }}                  # Target multi-platform builds
+          tags: ${{ steps.set-tags-standard.outputs.tags }}
+          cache-from: type=gha,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-to:   type=gha,mode=max,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          build-args: |                                       # Force rebuild each workflow run by using BUILD_EPOCH as a cache-busting argument
+            BUILD_TARGET=standard
+            BUILD_TIMESTAMP=${{ steps.set-build-metadata.outputs['timestamp'] }}
+            BUILD_EPOCH=${{ github.run_id }}-${{ github.run_attempt }}
+            GIT_COMMIT=${{ steps.set-build-metadata.outputs['sha-short'] }}
+
+  build-and-push-advanced:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs: [prepare, build-and-push-standard]
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check event source
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker build environment
+        uses: ./.github/actions/setup-docker
+        with:
+          platforms: all
+
+      - name: Log in to registries
+        uses: ./.github/actions/login-registries
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set build metadata
+        id: set-build-metadata
+        uses: ./.github/actions/set-build-metadata
+
+      - name: Set image tags for advanced
+        id: set-tags-advanced
+        uses: ./.github/actions/set-image-tags
+        with:
+          variant: ${{ matrix.variant }}
+          base-type: ${{ matrix['base-type'] }}
+          target: advanced
+          sha: ${{ steps.set-build-metadata.outputs['sha-short'] }}
+          owner-lowercase: ${{ steps.set-build-metadata.outputs['owner-lowercase'] }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Build and push Docker image (advanced version)
+        uses: docker/build-push-action@v6
+        with:
+          context: .                                          # Build context is current directory
+          file: ./Dockerfile.${{ matrix['base-type'] }}       # Use the variant-specific Dockerfile
+          target: advanced                                    # Build advanced target
+          pull: true                                          # Always pull the latest base image
+          push: true                                          # Push the image to registry after build
+          platforms: ${{ matrix.platforms }}                  # Target multi-platform builds
+          tags: ${{ steps.set-tags-advanced.outputs.tags }}
+          cache-from: type=gha,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-to:   type=gha,mode=max,scope=docker-network-helper-${{ github.run_id }}-${{ github.run_attempt }}
+          build-args: |                                       # Force rebuild each workflow run by using BUILD_EPOCH as a cache-busting argument
+            BUILD_TARGET=advanced
+            BUILD_TIMESTAMP=${{ steps.set-build-metadata.outputs['timestamp'] }}
+            BUILD_EPOCH=${{ github.run_id }}-${{ github.run_attempt }}
+            GIT_COMMIT=${{ steps.set-build-metadata.outputs['sha-short'] }}
