@@ -5,9 +5,9 @@ on:
     branches:
       - master
     paths:   # 相关文件改动时触发
-      - Dockerfile.alpine3.21
-      - Dockerfile.bookworm
-      - Dockerfile.bookworm-slim
+      - Dockerfile.alpine3.22
+      - Dockerfile.trixie
+      - Dockerfile.trixie-slim
       - .github/workflows/build-and-push.yaml
     tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
       - 'v*.*.*'
@@ -27,12 +27,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - variant: alpine3.21
+          - variant: alpine3.22
             platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
-          - variant: bookworm
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/mips64le
-          - variant: bookworm-slim
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/mips64le
+          - variant: trixie
+            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
+          - variant: trixie-slim
+            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
     steps:
       - name: Check event source
         run: |
@@ -84,42 +84,42 @@ jobs:
           GHCR_URL=ghcr.io/${{ steps.owner-lowercase.outputs.OWNER_LOWERCASE }}/network-helper
 
           case "${{ matrix.variant }}" in
-            alpine3.21)
+            alpine3.22)
               TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-alpine"
               TAGS="${TAGS},${DOCKERHUB_URL}:alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:alpine3.21"
+              TAGS="${TAGS},${DOCKERHUB_URL}:alpine3.22"
               TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine3.21"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine3.22"
               TAGS="${TAGS},${GHCR_URL}:${SHA}-alpine"
               TAGS="${TAGS},${GHCR_URL}:alpine"
-              TAGS="${TAGS},${GHCR_URL}:alpine3.21"
+              TAGS="${TAGS},${GHCR_URL}:alpine3.22"
               TAGS="${TAGS},${GHCR_URL}:latest-alpine"
-              TAGS="${TAGS},${GHCR_URL}:latest-alpine3.21"
+              TAGS="${TAGS},${GHCR_URL}:latest-alpine3.22"
               ;;
-            bookworm-slim)
+            trixie-slim)
               TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian-slim"
               TAGS="${TAGS},${DOCKERHUB_URL}:debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:bookworm-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:trixie-slim"
               TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-bookworm-slim"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie-slim"
               TAGS="${TAGS},${GHCR_URL}:${SHA}-debian-slim"
               TAGS="${TAGS},${GHCR_URL}:debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:bookworm-slim"
+              TAGS="${TAGS},${GHCR_URL}:trixie-slim"
               TAGS="${TAGS},${GHCR_URL}:latest-debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:latest-bookworm-slim"
+              TAGS="${TAGS},${GHCR_URL}:latest-trixie-slim"
               ;;
-            bookworm)
+            trixie)
               TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian"
               TAGS="${TAGS},${DOCKERHUB_URL}:debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:bookworm"
+              TAGS="${TAGS},${DOCKERHUB_URL}:trixie"
               TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-bookworm"
+              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie"
               TAGS="${TAGS},${DOCKERHUB_URL}:latest"
               TAGS="${TAGS},${GHCR_URL}:${SHA}-debian"
               TAGS="${TAGS},${GHCR_URL}:debian"
-              TAGS="${TAGS},${GHCR_URL}:bookworm"
+              TAGS="${TAGS},${GHCR_URL}:trixie"
               TAGS="${TAGS},${GHCR_URL}:latest-debian"
-              TAGS="${TAGS},${GHCR_URL}:latest-bookworm"
+              TAGS="${TAGS},${GHCR_URL}:latest-trixie"
               TAGS="${TAGS},${GHCR_URL}:latest"
               ;;
           esac
