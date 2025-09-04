@@ -1,5 +1,5 @@
-# 基于 Debian bookworm 最新版构建 network-helper 镜像
-FROM debian:bookworm
+# 基于 Debian trixie-slim 最新版构建 network-helper 镜像
+FROM debian:trixie-slim
 
 # Update package list and install required tools:
 # - bash

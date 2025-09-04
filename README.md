@@ -2,11 +2,11 @@
 
 该仓库用于构建并发布 Network Helper 镜像，支持三种不同的发行版：
 
-- Alpine (`alpine:3.21`)
+- Alpine (`alpine:3.22`)
 
-- Debian (`debian:bookworm`)
+- Debian (`debian:trixie`)
 
-- Debian-slim (`debian:bookworm-slim`)
+- Debian-slim (`debian:trixie-slim`)
 
 支持以下平台：
 
@@ -18,9 +18,9 @@
 
 - `arm64v8`
 
-- `mips64le`（仅 Debian 镜像；Alpine 官方镜像不支持 `mips64le`）
+- ~~`mips64le`~~（Alpine 官方镜像不支持 `mips64le`；Debian `trixie` 官方镜像也暂不支持 `mips64le`）
 
-- `riscv64`（仅 Alpine 镜像；Debian 官方镜像在 `bookworm` 下不支持 `riscv64`）
+- `riscv64`
 
 这些镜像均预装了常用网络工具，例如：
 
@@ -48,17 +48,17 @@
 git-<commit-hash>-<variant>
 ```
 
-- `debian`, `bookworm`, `latest-debian`, `latest-bookworm`, `latest`
+- `debian`, `trixie`, `latest-debian`, `latest-trixie`, `latest`
 
-- `git-xxxxxxx-debian`, `git-xxxxxxx-bookworm`
+- `git-xxxxxxx-debian`, `git-xxxxxxx-trixie`
 
-- `debian-slim`, `bookworm-slim`, `latest-debian-slim`, `latest-bookworm-slim`
+- `debian-slim`, `trixie-slim`, `latest-debian-slim`, `latest-trixie-slim`
 
-- `git-xxxxxxx-debian-slim`, `git-xxxxxxx-bookworm-slim`
+- `git-xxxxxxx-debian-slim`, `git-xxxxxxx-trixie-slim`
 
-- `alpine`, `alpine3.21`, `latest-alpine`, `latest-alpine3.21`
+- `alpine`, `alpine3.22`, `latest-alpine`, `latest-alpine3.22`
 
-- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.21`
+- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.22`
 
 ## 2. 镜像构建
 
@@ -85,7 +85,7 @@ git-<commit-hash>-<variant>
 ```yaml
 services:
   network-helper:
-    image: ghcr.io/icasture/network-helper:git-abcdef12-alpine3.21
+    image: ghcr.io/icasture/network-helper:git-abcdef12-alpine3.22
     container_name: network-helper
     ports:  # 可选, 用于将某些端口暴露给宿主机
       - '34567:5432'
