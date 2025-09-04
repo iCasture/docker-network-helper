@@ -1,0 +1,35 @@
+name: 'Set up Docker build environment'
+description: 'Set up QEMU and Docker Buildx for cross-platform builds'
+
+inputs:
+  platforms:
+    description: 'Platforms to set up QEMU for'
+    required: false
+    default: 'all'
+
+runs:
+  using: 'composite'
+  steps:
+    # docker/setup-qemu-action should come before docker/setup-buildx-action
+    - name: Set up QEMU for cross-platform builds
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: ${{ inputs.platforms }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        # driver: docker
+        driver: docker-container   # Enable multi-platform builds
+
+    - name: Check QEMU binfmt
+      shell: bash
+      run: ls /proc/sys/fs/binfmt_misc | grep qemu
+
+    - name: Verify Buildx driver
+      shell: bash
+      run: |
+        echo "Current buildx driver:"
+        docker buildx inspect --bootstrap | grep -E "(Driver|Status)" || true
+        echo "Available builders:"
+        docker buildx ls

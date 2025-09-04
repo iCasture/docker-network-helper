@@ -1,0 +1,225 @@
+# Multi-stage Dockerfile for Ubuntu based network-helper image
+# Supports both core and extended variants
+
+ARG UBUNTU_VER=24.04
+
+# # # # # # #
+# mitmproxy stage with mitmproxy installation
+# # # # # # #
+
+FROM ubuntu:${UBUNTU_VER} AS mitmproxy-builder
+
+# Define a build argument with a default value (0).
+# This value will be overridden by GitHub Actions using --build-arg,
+# but having a default ensures the Dockerfile can still build locally
+# without explicitly passing BUILD_EPOCH.
+ARG BUILD_DATE=unknown
+ARG BUILD_EPOCH=unknown
+ARG GIT_COMMIT=unknown
+
+# Add a label to record the build epoch.
+# This serves as a cache-busting mechanism: each CI run injects a unique value,
+# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+LABEL build.date="${BUILD_DATE}" \
+      build.epoch="${BUILD_EPOCH}" \
+      build.git_commit="${GIT_COMMIT}"
+
+# Enable Docker buildx platform detection
+ARG TARGETPLATFORM
+
+# Define mitmproxy version argument
+ARG MITMPROXY_VERSION
+
+# Install dependencies for mitmproxy installation
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    bash \
+    curl \
+    jq \
+    tar \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy all mitmproxy setup scripts
+COPY scripts/install-mitmproxy.sh /tmp/install-mitmproxy.sh
+COPY scripts/check-mitmproxy-platform-and-arch.sh /tmp/check-mitmproxy-platform-and-arch.sh
+COPY scripts/create-mitmproxy-placeholders.sh /tmp/create-mitmproxy-placeholders.sh
+COPY scripts/setup-mitmproxy.sh /tmp/setup-mitmproxy.sh
+
+# Setup mitmproxy based on platform support
+RUN chmod +x /tmp/install-mitmproxy.sh \
+             /tmp/check-mitmproxy-platform-and-arch.sh \
+             /tmp/create-mitmproxy-placeholders.sh \
+             /tmp/setup-mitmproxy.sh
+RUN TARGETPLATFORM=${TARGETPLATFORM} MITMPROXY_VERSION=${MITMPROXY_VERSION} /tmp/setup-mitmproxy.sh
+
+# # # # # # #
+# dnsx stage with Go and dnsx installation
+# # # # # # #
+
+FROM ubuntu:${UBUNTU_VER} AS dnsx-builder
+
+# Define a build argument with a default value (0).
+# This value will be overridden by GitHub Actions using --build-arg,
+# but having a default ensures the Dockerfile can still build locally
+# without explicitly passing BUILD_EPOCH.
+ARG BUILD_DATE=unknown
+ARG BUILD_EPOCH=unknown
+ARG GIT_COMMIT=unknown
+
+# Add a label to record the build epoch.
+# This serves as a cache-busting mechanism: each CI run injects a unique value,
+# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+LABEL build.date="${BUILD_DATE}" \
+      build.epoch="${BUILD_EPOCH}" \
+      build.git_commit="${GIT_COMMIT}"
+
+# Install Go and build dnsx
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    golang \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dnsx
+RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+
+# # # # # # #
+# Basic stage
+# # # # # # #
+
+FROM ubuntu:${UBUNTU_VER} AS basic
+
+# Define a build argument with a default value (0).
+# This value will be overridden by GitHub Actions using --build-arg,
+# but having a default ensures the Dockerfile can still build locally
+# without explicitly passing BUILD_EPOCH.
+ARG MAINTAINER=unknown
+ARG DISTRO=ubuntu
+ARG DISTRO_VERSION=unknown
+ARG BUILD_TARGET=basic
+ARG PLATFORMS=unknown
+ARG BUILD_DATE=unknown
+ARG BUILD_EPOCH=unknown
+ARG GIT_COMMIT=unknown
+
+# Add a label to record the build epoch.
+# This serves as a cache-busting mechanism: each CI run injects a unique value,
+# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+LABEL maintainer="${MAINTAINER}" \
+      build.distro="${DISTRO}" \
+      build.distro_version="${DISTRO_VERSION}" \
+      build.target="${BUILD_TARGET}" \
+      build.platforms="${PLATFORMS}" \
+      build.date="${BUILD_DATE}" \
+      build.epoch="${BUILD_EPOCH}" \
+      build.git_commit="${GIT_COMMIT}"
+
+# Keep the container running by default so it can be used as a toolbox.
+CMD ["tail", "-f", "/dev/null"]
+
+# Use a stricter shell for all RUN instructions.
+# On Debian/Ubuntu, /bin/sh is dash by default, which does not support "-o pipefail".
+# Here we switch to /bin/bash instead.
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    bash \
+    ca-certificates \
+    curl \
+    dnsutils \
+    iputils-ping \
+    net-tools \
+    netcat-openbsd \
+    telnet \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# # # # # # #
+# Standard stage
+# # # # # # #
+
+FROM basic AS standard
+
+# Define a build argument with a default value (0).
+# This value will be overridden by GitHub Actions using --build-arg,
+# but having a default ensures the Dockerfile can still build locally
+# without explicitly passing BUILD_EPOCH.
+ARG BUILD_TARGET=standard
+ARG BUILD_DATE=unknown
+ARG BUILD_EPOCH=unknown
+ARG GIT_COMMIT=unknown
+
+# Add a label to record the build epoch.
+# This serves as a cache-busting mechanism: each CI run injects a unique value,
+# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+LABEL build.target="${BUILD_TARGET}" \
+      build.date="${BUILD_DATE}" \
+      build.epoch="${BUILD_EPOCH}" \
+      build.git_commit="${GIT_COMMIT}"
+
+RUN apt-get update && \
+    echo "iperf3 iperf3/start_daemon boolean false" | debconf-set-selections && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    ethtool \
+    iperf3 \
+    iproute2 \
+    jq \
+    lsof \
+    openssl \
+    procps \
+    tcpdump && \
+    rm -rf /var/lib/apt/lists/*
+
+# # # # # # #
+# Advanced stage
+# # # # # # #
+
+FROM standard AS advanced
+
+# Define a build argument with a default value (0).
+# This value will be overridden by GitHub Actions using --build-arg,
+# but having a default ensures the Dockerfile can still build locally
+# without explicitly passing BUILD_EPOCH.
+ARG BUILD_TARGET=advanced
+ARG BUILD_DATE=unknown
+ARG BUILD_EPOCH=unknown
+ARG GIT_COMMIT=unknown
+
+# Add a label to record the build epoch.
+# This serves as a cache-busting mechanism: each CI run injects a unique value,
+# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+LABEL build.target="${BUILD_TARGET}" \
+      build.date="${BUILD_DATE}" \
+      build.epoch="${BUILD_EPOCH}" \
+      build.git_commit="${GIT_COMMIT}"
+
+# Copy mitmproxy binaries from mitmproxy builder stage
+# Note: These will be either real binaries or placeholder scripts depending on architecture
+COPY --from=mitmproxy-builder /usr/local/bin/mitmproxy /usr/local/bin/mitmproxy
+COPY --from=mitmproxy-builder /usr/local/bin/mitmdump /usr/local/bin/mitmdump
+COPY --from=mitmproxy-builder /usr/local/bin/mitmweb /usr/local/bin/mitmweb
+
+# Copy dnsx binary from builder stage
+COPY --from=dnsx-builder /root/go/bin/dnsx /usr/local/bin/dnsx
+
+RUN apt-get update && \
+    echo "wireshark-common wireshark-common/install-setuid boolean false" | debconf-set-selections && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    htop \
+    iftop \
+    knot \
+    mtr-tiny \
+    nmap \
+    openssh-client \
+    rsync \
+    socat \
+    traceroute \
+    tshark \
+    vim \
+    whois && \
+    rm -rf /var/lib/apt/lists/*
+
+# Default target is standard
+FROM standard

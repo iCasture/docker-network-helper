@@ -1,0 +1,8 @@
+{
+  "alpineVersion": "3.22",
+  "debianVersion": "trixie",
+  "ubuntuVersion": "noble",
+  "alpinePlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386",
+  "debianPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386",
+  "ubuntuPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64"
+}

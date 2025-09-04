@@ -4,17 +4,17 @@ on:
   push:
     branches:
       - master
-    paths:   # 相关文件改动时触发
+    paths:   # Trigger on changes to relevant files
       - README.md
       - .github/workflows/sync-dockerhub-description.yaml
-    tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
+    tags:   # Trigger when tags are created. Match format like v1.2.3 (semantic versioning).
       - 'v*.*.*'
-  release:   # 发布新的 release 时触发
+  release:   # Trigger when a new release is published
     types:
       - published
-  schedule:   # 每月 1 日和 15 日 00:00 UTC 自动触发
-    - cron: '0 0 1,15 * *'
-  workflow_dispatch:   # 手动触发
+  schedule:   # Auto-trigger on 1st of each month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:   # Manual trigger
 
 jobs:
   dockerHubDescription:
@@ -25,7 +25,7 @@ jobs:
           echo "Triggered by: ${{ github.event_name }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Update Docker Hub README
         uses: peter-evans/dockerhub-description@v4
