@@ -4,142 +4,135 @@ on:
   push:
     branches:
       - master
-    paths:   # 相关文件改动时触发
-      - Dockerfile.alpine3.22
-      - Dockerfile.trixie
-      - Dockerfile.trixie-slim
+    paths:   # Trigger on changes to relevant files
+      - Dockerfile.alpine
+      - Dockerfile.debian
+      - Dockerfile.debian-slim
+      - Dockerfile.ubuntu
+      - docker-bake.hcl
+      - .github/build-params.json
       - .github/workflows/build-and-push.yaml
-    tags:   # 创建标签时触发. 匹配形如 v1.2.3 格式 (语义化版本).
+      - .github/actions/get-mitmproxy-version/**
+      - .github/actions/login-registries/**
+      - .github/actions/set-build-metadata/**
+      - .github/actions/set-multi-image-tags/**
+      - .github/actions/setup-docker/**
+      - scripts/setup-mitmproxy.sh
+      - scripts/check-mitmproxy-platform-and-arch.sh
+      - scripts/create-mitmproxy-placeholders.sh
+      - scripts/install-mitmproxy.sh
+    tags:   # Trigger when tags are created. Match format like v1.2.3 (semantic versioning).
       - 'v*.*.*'
-  release:   # 发布新的 release 时触发
+  release:   # Trigger when a new release is published
     types:
       - published
-  schedule:   # 每月 1 日和 15 日 00:00 UTC 自动触发
-    - cron: '0 0 1,15 * *'
-  workflow_dispatch:   # 手动触发
+  schedule:   # Auto-trigger on 1st of each month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:   # Manual trigger
 
 jobs:
-  buildAndPush:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      mitmproxy-version: ${{ steps.get-mitmproxy-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get latest mitmproxy version from GitHub API
+        id: get-mitmproxy-version
+        uses: ./.github/actions/get-mitmproxy-version
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build matrix JSON from params
+        id: build-matrix
+        run: |
+          params=$(cat .github/build-params.json)
+          alpineBaseVersion=$(jq -r '.alpineVersion' <<<"$params")
+          debianBaseVersion=$(jq -r '.debianVersion' <<<"$params")
+          ubuntuBaseVersion=$(jq -r '.ubuntuVersion' <<<"$params")
+          alpinePlatforms=$(jq -r '.alpinePlatforms' <<<"$params")
+          debianPlatforms=$(jq -r '.debianPlatforms' <<<"$params")
+          ubuntuPlatforms=$(jq -r '.ubuntuPlatforms' <<<"$params")
+
+          matrix=$(jq -n --arg alpineBaseVersion "$alpineBaseVersion" \
+                         --arg debianBaseVersion "$debianBaseVersion" \
+                         --arg ubuntuBaseVersion "$ubuntuBaseVersion" \
+                         --arg alpinePlatforms "$alpinePlatforms" \
+                         --arg debianPlatforms "$debianPlatforms" \
+                         --arg ubuntuPlatforms "$ubuntuPlatforms" \
+            '{include: [
+              { "variant": ("alpine" + $alpineBaseVersion),  "base-type": "alpine",      "platforms":$alpinePlatforms },
+              { "variant": $debianBaseVersion,               "base-type": "debian",      "platforms":$debianPlatforms },
+              { "variant": ($debianBaseVersion + "-slim"),   "base-type": "debian-slim", "platforms":$debianPlatforms },
+              { "variant": $ubuntuBaseVersion,               "base-type": "ubuntu",      "platforms":$ubuntuPlatforms }
+            ]}')
+
+          {
+            echo "matrix<<EOF"
+            echo "$matrix"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    needs: prepare
     strategy:
-      matrix:
-        include:
-          - variant: alpine3.22
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
-          - variant: trixie
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
-          - variant: trixie-slim
-            platforms: linux/amd64,linux/386,linux/arm64/v8,linux/arm/v7,linux/riscv64
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Check event source
         run: |
           echo "Triggered by: ${{ github.event_name }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      # docker/setup-qemu-action should come before docker/setup-buildx-action
-      - name: Set up QEMU for cross-platform builds
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker build environment
+        uses: ./.github/actions/setup-docker
         with:
           platforms: all
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Check QEMU binfmt
-        run: ls /proc/sys/fs/binfmt_misc | grep qemu
-
-      - name: Log in to GitHub Container Registry (ghcr.io)
-        uses: docker/login-action@v3
+      - name: Log in to registries
+        uses: ./.github/actions/login-registries
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set build metadata
+        id: set-build-metadata
+        uses: ./.github/actions/set-build-metadata
 
-      - name: Set lowercase repo owner
-        id: owner-lowercase
-        run: echo "OWNER_LOWERCASE=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Get short Git SHA
-        id: sha-short
-        run: echo "SHA_SHORT=$(echo ${GITHUB_SHA:0:7})" >> $GITHUB_OUTPUT
-
-      - name: Set image tags
+      - name: Set image tags for all targets
         id: set-tags
-        run: |
-          TAGS=""
-          SHA=git-${{ steps.sha-short.outputs.SHA_SHORT }}
-          DOCKERHUB_URL=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/network-helper
-          GHCR_URL=ghcr.io/${{ steps.owner-lowercase.outputs.OWNER_LOWERCASE }}/network-helper
-
-          case "${{ matrix.variant }}" in
-            alpine3.22)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:alpine3.22"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-alpine3.22"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-alpine"
-              TAGS="${TAGS},${GHCR_URL}:alpine"
-              TAGS="${TAGS},${GHCR_URL}:alpine3.22"
-              TAGS="${TAGS},${GHCR_URL}:latest-alpine"
-              TAGS="${TAGS},${GHCR_URL}:latest-alpine3.22"
-              ;;
-            trixie-slim)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:trixie-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian-slim"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie-slim"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:trixie-slim"
-              TAGS="${TAGS},${GHCR_URL}:latest-debian-slim"
-              TAGS="${TAGS},${GHCR_URL}:latest-trixie-slim"
-              ;;
-            trixie)
-              TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:trixie"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-debian"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest-trixie"
-              TAGS="${TAGS},${DOCKERHUB_URL}:latest"
-              TAGS="${TAGS},${GHCR_URL}:${SHA}-debian"
-              TAGS="${TAGS},${GHCR_URL}:debian"
-              TAGS="${TAGS},${GHCR_URL}:trixie"
-              TAGS="${TAGS},${GHCR_URL}:latest-debian"
-              TAGS="${TAGS},${GHCR_URL}:latest-trixie"
-              TAGS="${TAGS},${GHCR_URL}:latest"
-              ;;
-          esac
-
-          # 通用 tag
-          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${{ matrix.variant }}"
-          TAGS="${TAGS},${GHCR_URL}:${SHA}-${{ matrix.variant }}"
-
-          # 格式化为多行
-          echo "tags<<EOF" >> $GITHUB_OUTPUT
-          echo "${TAGS#,}" | tr ',' '\n' >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: ./.github/actions/set-multi-image-tags
         with:
-          context: .                                 # Build context is current directory
-          file: ./Dockerfile.${{ matrix.variant }}   # Use the variant-specific Dockerfile
-          pull: true                                 # Always pull the latest base image
-          no-cache: true                             # Disable all layers cache during build
-          push: true                                 # Push the image to registry after build
-          platforms: ${{ matrix.platforms }}         # Target multi-platform builds
-          tags: ${{ steps.set-tags.outputs.tags }}
+          variant: ${{ matrix.variant }}
+          base-type: ${{ matrix['base-type'] }}
+          targets: basic,standard,advanced
+          sha-short: ${{ steps.set-build-metadata.outputs['sha-short'] }}
+          owner-lowercase: ${{ steps.set-build-metadata.outputs['owner-lowercase'] }}
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Build and push all targets with Docker Bake
+        uses: docker/bake-action@v6
+        with:
+          files: docker-bake.hcl
+          targets: default
+          push: true
+          # pull: true
+        env:
+          DISTRO: ${{ matrix['base-type'] }}
+          DISTRO_VERSION: ${{ matrix.variant }}
+          PLATFORMS: ${{ matrix.platforms }}
+          MAINTAINER: ${{ steps.set-build-metadata.outputs['owner'] }}
+          BUILD_DATE: ${{ steps.set-build-metadata.outputs.date }}
+          BUILD_EPOCH: ${{ github.run_id }}-${{ github.run_attempt }}
+          GIT_COMMIT: ${{ steps.set-build-metadata.outputs['sha-full'] }}
+          MITMPROXY_VERSION: ${{ needs.prepare.outputs.mitmproxy-version }}
+          TAGS_BASIC: ${{ steps.set-tags.outputs.tags-basic }}
+          TAGS_STANDARD: ${{ steps.set-tags.outputs.tags-standard }}
+          TAGS_ADVANCED: ${{ steps.set-tags.outputs.tags-advanced }}

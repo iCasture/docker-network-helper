@@ -1,0 +1,52 @@
+name: 'Set multi-image tags'
+description: 'Generate Docker image tags for multiple build targets'
+
+inputs:
+  variant:
+    description: 'Image variant name (e.g. alpine3.22, trixie, trixie-slim, noble)'
+    required: true
+  base-type:
+    description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'
+    required: true
+  targets:
+    description: 'Comma-separated list of build targets (e.g. basic,standard,advanced)'
+    required: true
+  sha-short:
+    description: 'Short Git SHA (7 characters)'
+    required: true
+  owner-lowercase:
+    description: 'Lowercase repository owner name'
+    required: true
+  dockerhub-username:
+    description: 'Docker Hub username'
+    required: true
+
+outputs:
+  tags:
+    description: 'Generated Docker image tags for all targets (comma-separated list format)'
+    value: ${{ steps.set-tags.outputs.tags }}
+  tags-basic:
+    description: 'Generated Docker image tags for basic target (comma-separated list format)'
+    value: ${{ steps.set-tags.outputs.tags-basic }}
+  tags-standard:
+    description: 'Generated Docker image tags for standard target (comma-separated list format)'
+    value: ${{ steps.set-tags.outputs.tags-standard }}
+  tags-advanced:
+    description: 'Generated Docker image tags for advanced target (comma-separated list format)'
+    value: ${{ steps.set-tags.outputs.tags-advanced }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set multi-image tags
+      id: set-tags
+      shell: bash
+      run: |
+        # Call the external script with all required parameters
+        "${{ github.action_path }}/set-multi-image-tags.sh" \
+          "${{ inputs.variant }}" \
+          "${{ inputs.base-type }}" \
+          "${{ inputs.targets }}" \
+          "${{ inputs.sha-short }}" \
+          "${{ inputs.owner-lowercase }}" \
+          "${{ inputs.dockerhub-username }}" >> $GITHUB_OUTPUT

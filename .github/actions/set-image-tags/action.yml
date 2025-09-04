@@ -1,0 +1,120 @@
+name: 'Set image tags'
+description: 'Generate Docker image tags based on image variant and build target'
+
+inputs:
+  variant:
+    description: 'Image variant name (e.g. alpine3.22, trixie, trixie-slim, noble)'
+    required: true
+  base-type:
+    description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'
+    required: true
+  target:
+    description: 'Build target (basic, standard, or advanced)'
+    required: true
+  sha-short:
+    description: 'Short Git SHA (7 characters)'
+    required: true
+  owner-lowercase:
+    description: 'Lowercase repository owner name'
+    required: true
+  dockerhub-username:
+    description: 'Docker Hub username'
+    required: true
+
+outputs:
+  tags:
+    description: 'Generated Docker image tags'
+    value: ${{ steps.set-tags.outputs.tags }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set image tags
+      id: set-tags
+      shell: bash
+      run: |
+        TAGS=""
+        SHA=git-${{ inputs.sha-short }}
+        TARGET="${{ inputs.target }}"
+        DOCKERHUB_URL=docker.io/${{ inputs.dockerhub-username }}/network-helper
+        GHCR_URL=ghcr.io/${{ inputs.owner-lowercase }}/network-helper
+
+        # Set base variant names using passed base-type
+        BASE_VARIANT="${{ inputs.base-type }}"
+        BASE_VARIANT_FULL="${{ inputs.variant }}"
+
+        # Generate tags based on target
+        if [ "${TARGET}" = "basic" ]; then
+
+          # Basic image tags without suffix (default tags)
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT}"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT_FULL}"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT}"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT_FULL}"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT}"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT_FULL}"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT}"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT_FULL}"
+
+          # Basic image tags with -basic suffix
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-basic"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-basic"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT_FULL}-basic"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT_FULL}-basic"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-basic"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT}-basic"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT_FULL}-basic"
+
+          # Add latest tag for ubuntu-based basic images
+          if [ "${BASE_VARIANT}" = "ubuntu" ]; then
+            TAGS="${TAGS},${DOCKERHUB_URL}:latest"
+            TAGS="${TAGS},${GHCR_URL}:latest"
+          fi
+
+        elif [ "${TARGET}" = "standard" ]; then
+
+          # Standard image tags with -standard suffix
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-standard"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-standard"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT_FULL}-standard"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT_FULL}-standard"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-standard"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT}-standard"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT_FULL}-standard"
+
+        elif [ "${TARGET}" = "advanced" ]; then
+
+          # Advanced image tags with -advanced suffix
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-advanced"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-advanced"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${DOCKERHUB_URL}:${SHA}-${BASE_VARIANT_FULL}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:${BASE_VARIANT_FULL}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT}-advanced"
+          TAGS="${TAGS},${GHCR_URL}:${SHA}-${BASE_VARIANT_FULL}-advanced"
+
+        fi
+
+        # Format as multiline
+        echo "tags<<EOF" >> $GITHUB_OUTPUT
+        echo "${TAGS#,}" | tr ',' '\n' >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
