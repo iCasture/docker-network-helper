@@ -37,7 +37,7 @@ jobs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
       mitmproxy-version: ${{ steps.get-mitmproxy-version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Get latest mitmproxy version from GitHub API
         id: get-mitmproxy-version
@@ -89,7 +89,7 @@ jobs:
           echo "Triggered by: ${{ github.event_name }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker build environment
         uses: ./.github/actions/setup-docker

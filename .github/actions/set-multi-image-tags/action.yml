@@ -3,7 +3,7 @@ description: 'Generate Docker image tags for multiple build targets'
 
 inputs:
   variant:
-    description: 'Image variant name (e.g. alpine3.22, trixie, trixie-slim, noble)'
+    description: 'Image variant name (e.g. alpine3.23, trixie, trixie-slim, noble)'
     required: true
   base-type:
     description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'

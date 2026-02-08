@@ -2,7 +2,7 @@
 
 该仓库用于构建并发布 Network Helper 镜像，支持四种不同的发行版：
 
-- Alpine (`alpine:3.22`)
+- Alpine (`alpine:3.23`)
 
 - Debian (`debian:trixie`)
 
@@ -139,7 +139,7 @@ git-<commit-hash>-<variant>[-<target>]
 
 其中：
 
-- `<variant>`: `alpine`, `alpine3.22`, `debian`, `trixie`, `debian-slim`, `trixie-slim`, `ubuntu`, `noble`
+- `<variant>`: `alpine`, `alpine3.23`, `debian`, `trixie`, `debian-slim`, `trixie-slim`, `ubuntu`, `noble`
 
 - `<target>`: `basic`, `standard`（默认，可省略）, `advanced`
 
@@ -147,9 +147,9 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Alpine Basic:**
 
-- `alpine-basic`, `alpine3.22-basic`, `latest-alpine-basic`, `latest-alpine3.22-basic`
+- `alpine-basic`, `alpine3.23-basic`, `latest-alpine-basic`, `latest-alpine3.23-basic`
 
-- `git-xxxxxxx-alpine-basic`, `git-xxxxxxx-alpine3.22-basic`
+- `git-xxxxxxx-alpine-basic`, `git-xxxxxxx-alpine3.23-basic`
 
 **Debian Basic:**
 
@@ -173,13 +173,13 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Alpine Standard:**
 
-- `alpine`, `alpine3.22`, `latest-alpine`, `latest-alpine3.22`
+- `alpine`, `alpine3.23`, `latest-alpine`, `latest-alpine3.23`
 
-- `alpine-standard`, `alpine3.22-standard`, `latest-alpine-standard`, `latest-alpine3.22-standard`
+- `alpine-standard`, `alpine3.23-standard`, `latest-alpine-standard`, `latest-alpine3.23-standard`
 
-- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.22`
+- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.23`
 
-- `git-xxxxxxx-alpine-standard`, `git-xxxxxxx-alpine3.22-standard`
+- `git-xxxxxxx-alpine-standard`, `git-xxxxxxx-alpine3.23-standard`
 
 **Debian Standard:**
 
@@ -215,9 +215,9 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Alpine Advanced:**
 
-- `alpine-advanced`, `alpine3.22-advanced`, `latest-alpine-advanced`, `latest-alpine3.22-advanced`
+- `alpine-advanced`, `alpine3.23-advanced`, `latest-alpine-advanced`, `latest-alpine3.23-advanced`
 
-- `git-xxxxxxx-alpine-advanced`, `git-xxxxxxx-alpine3.22-advanced`
+- `git-xxxxxxx-alpine-advanced`, `git-xxxxxxx-alpine3.23-advanced`
 
 **Debian Advanced:**
 
