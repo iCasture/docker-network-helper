@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Alpine based network-helper image
 # Supports both core and extended variants
 
-ARG ALPINE_VER=3.22
+ARG ALPINE_VER=3.23
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation
