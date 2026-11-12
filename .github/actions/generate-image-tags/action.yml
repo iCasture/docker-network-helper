@@ -1,0 +1,58 @@
+name: 'Generate image registry tags'
+description: 'Generate comma-separated Docker Hub and GHCR image references for the selected Docker Bake targets'
+
+inputs:
+  variant:
+    description: 'Image variant name (e.g. alpine3.24, trixie, trixie-slim, resolute)'
+    required: true
+  base-type:
+    description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'
+    required: true
+  targets:
+    description: 'Comma-separated list of build targets (e.g. basic,standard,advanced)'
+    required: true
+  sha-short:
+    description: 'Short Git SHA (7 characters)'
+    required: true
+  owner-lowercase:
+    description: 'Lowercase repository owner name'
+    required: true
+  dockerhub-username:
+    description: 'Docker Hub username'
+    required: true
+
+outputs:
+  tags:
+    description: 'Generated Docker image tags for all targets (comma-separated list format)'
+    value: ${{ steps.generate-tags.outputs.tags }}
+  tags-basic:
+    description: 'Generated Docker image tags for basic target (comma-separated list format)'
+    value: ${{ steps.generate-tags.outputs.tags-basic }}
+  tags-standard:
+    description: 'Generated Docker image tags for standard target (comma-separated list format)'
+    value: ${{ steps.generate-tags.outputs.tags-standard }}
+  tags-advanced:
+    description: 'Generated Docker image tags for advanced target (comma-separated list format)'
+    value: ${{ steps.generate-tags.outputs.tags-advanced }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate tags for each selected build target
+      id: generate-tags
+      shell: bash
+      env:
+        IMAGE_VARIANT: ${{ inputs.variant }}
+        BASE_TYPE: ${{ inputs.base-type }}
+        BUILD_TARGETS: ${{ inputs.targets }}
+        SHORT_SHA: ${{ inputs.sha-short }}
+        OWNER_LOWERCASE: ${{ inputs.owner-lowercase }}
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+      run: |
+        "$GITHUB_ACTION_PATH/generate-image-tags.sh" \
+          "$IMAGE_VARIANT" \
+          "$BASE_TYPE" \
+          "$BUILD_TARGETS" \
+          "$SHORT_SHA" \
+          "$OWNER_LOWERCASE" \
+          "$DOCKERHUB_USERNAME" >> "$GITHUB_OUTPUT"

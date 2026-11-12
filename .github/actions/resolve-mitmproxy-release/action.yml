@@ -1,5 +1,5 @@
-name: 'Get latest mitmproxy version from GitHub API'
-description: 'Fetch the latest mitmproxy version from GitHub API with token authentication'
+name: 'Resolve the latest mitmproxy release'
+description: 'Read the latest published release tag from mitmproxy/mitmproxy and return its version without the leading v'
 
 inputs:
   github-token:
@@ -10,19 +10,17 @@ inputs:
 outputs:
   version:
     description: 'The latest mitmproxy version (without v prefix)'
-    value: ${{ steps.get-version.outputs.version }}
+    value: ${{ steps.resolve-release.outputs.version }}
   success:
     description: 'Whether the version was successfully fetched'
-    value: ${{ steps.get-version.outputs.success }}
+    value: ${{ steps.resolve-release.outputs.success }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Install required packages if not present
+    - name: Ensure jq is installed
       shell: bash
       run: |
-        # Check if packages are installed, install if not present
-
         if ! dpkg -s jq >/dev/null 2>&1; then
           echo "Installing jq ..."
           sudo apt-get update && \
@@ -31,22 +29,24 @@ runs:
           echo "jq is already installed"
         fi
 
-    - name: Get latest mitmproxy version
-      id: get-version
+    - name: Fetch and parse the latest release tag
+      id: resolve-release
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         echo "Fetching latest mitmproxy version from GitHub API ..."
 
         # Make API request with authentication
         response=$(curl -sSL --connect-timeout 30 --max-time 120 --retry 3 --retry-delay 5 \
           -w "%{http_code}" \
-          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Authorization: Bearer $GH_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/mitmproxy/mitmproxy/releases/latest")
 
         # Extract HTTP status code and response body
         http_code="${response: -3}"
-        body="${response::-3}"
+        body="${response:0:${#response}-3}"
 
         echo "GitHub API HTTP status code: ${http_code}"
         # echo "GitHub API response body: ${body}"
@@ -55,20 +55,19 @@ runs:
         if [ "$http_code" != "200" ]; then
           echo "GitHub API request failed with status code: ${http_code}"
           echo "Response body: ${body}"
-          echo "success=false" >> $GITHUB_OUTPUT
+          echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
 
         # Extract version from response
-        version=$(printf '%s' "$body" | tr -d '\000-\037' | jq -r '.tag_name | ltrimstr("v")')
-
-        if [ -z "$version" ]; then
-          echo "Failed to extract version from GitHub API response (empty version)"
-          echo "Response body: ${body}"
-          echo "success=false" >> $GITHUB_OUTPUT
+        if ! version=$(jq -er '.tag_name | strings | ltrimstr("v") | select(length > 0)' <<< "$body"); then
+          echo "::error::The GitHub API response did not contain a mitmproxy release version."
+          echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
 
         echo "Fetched latest mitmproxy version: ${version}"
-        echo "version=${version}" >> $GITHUB_OUTPUT
-        echo "success=true" >> $GITHUB_OUTPUT
+        {
+          echo "version=$version"
+          echo "success=true"
+        } >> "$GITHUB_OUTPUT"

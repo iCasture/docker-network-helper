@@ -1,5 +1,5 @@
-name: 'Log in to registries'
-description: 'Log in to GitHub Container Registry and Docker Hub'
+name: 'Log in to image registries'
+description: 'Authenticate to GHCR with the workflow token and to Docker Hub with the supplied credentials'
 
 inputs:
   dockerhub-username:
@@ -13,14 +13,14 @@ runs:
   using: 'composite'
   steps:
     - name: Log in to GitHub Container Registry (ghcr.io)
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: docker.io
         username: ${{ inputs.dockerhub-username }}

@@ -1,0 +1,60 @@
+name: Docker Image Validation and Publishing
+
+on:
+  push:
+    branches:
+      - master
+    # Use exact paths or directory/** so Dependabot can reuse this filter.
+    paths: &image-build-paths
+      - Dockerfile.alpine
+      - Dockerfile.debian
+      - Dockerfile.debian-slim
+      - Dockerfile.ubuntu
+      - docker-bake.hcl
+      - .github/build-params.json
+      - .github/workflows/docker-image-pipeline.yaml
+      - .github/workflows/docker-image-build.yaml
+      - .github/actions/resolve-mitmproxy-release/**
+      - .github/actions/login-image-registries/**
+      - .github/actions/collect-image-build-metadata/**
+      - .github/actions/generate-image-tags/**
+      - .github/actions/setup-multiplatform-buildx/**
+      - scripts/setup-mitmproxy.sh
+      - scripts/check-mitmproxy-platform-and-arch.sh
+      - scripts/create-mitmproxy-placeholders.sh
+      - scripts/install-mitmproxy.sh
+    tags:   # Trigger when tags are created. Match format like v1.2.3 (semantic versioning).
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - master
+    paths: *image-build-paths
+  release:   # Trigger when a new release is published
+    types:
+      - published
+  schedule:   # Auto-trigger on 1st of each month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:   # Manual trigger
+
+jobs:
+  validate-pr-images:
+    name: Validate PR images
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker-image-build.yaml
+    with:
+      push-to-registries: false
+
+  publish-images:
+    name: Publish Docker images
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-image-build.yaml
+    with:
+      push-to-registries: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

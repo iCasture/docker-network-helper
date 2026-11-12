@@ -1,0 +1,66 @@
+name: 'Collect image build metadata'
+description: 'Expose the repository owner, workflow commit SHA, and Shanghai calendar date for image builds'
+
+outputs:
+  owner:
+    description: 'Repository owner name (original case)'
+    value: ${{ steps.repository-owner.outputs.owner }}
+  owner-lowercase:
+    description: 'Lowercase repository owner name'
+    value: ${{ steps.repository-owner.outputs.owner-lowercase }}
+  sha-short:
+    description: 'Short Git SHA (7 characters)'
+    value: ${{ steps.workflow-commit.outputs.sha-short }}
+  sha-full:
+    description: 'Full Git SHA (40 characters)'
+    value: ${{ steps.workflow-commit.outputs.sha-full }}
+  date:
+    description: 'Calendar date in Asia/Shanghai, formatted as YYYY-MM-DD'
+    value: ${{ steps.build-date.outputs.date }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Read the repository owner
+      id: repository-owner
+      shell: bash
+      run: |
+        {
+          echo "owner=$GITHUB_REPOSITORY_OWNER"
+          echo "owner-lowercase=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Read the workflow commit SHA
+      id: workflow-commit
+      shell: bash
+      run: |
+        {
+          echo "sha-short=${GITHUB_SHA:0:7}"
+          echo "sha-full=$GITHUB_SHA"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Ensure date and time zone data are available
+      shell: bash
+      run: |
+        if ! dpkg -s coreutils >/dev/null 2>&1; then
+          echo "Installing coreutils ..."
+          sudo apt-get update && \
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y coreutils
+        else
+          echo "coreutils is already installed"
+        fi
+
+        if ! dpkg -s tzdata >/dev/null 2>&1; then
+          echo "Installing tzdata ..."
+          sudo apt-get update && \
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y tzdata
+        else
+          echo "tzdata is already installed"
+        fi
+
+    - name: Read the build date in Asia/Shanghai
+      id: build-date
+      shell: bash
+      run: |
+        build_date=$(TZ=Asia/Shanghai date '+%Y-%m-%d')
+        echo "date=$build_date" >> "$GITHUB_OUTPUT"

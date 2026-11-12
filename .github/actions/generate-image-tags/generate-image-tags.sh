@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to generate Docker image tags for multiple build targets
-# Usage: set-multi-image-tags.sh <variant> <base-type> <targets> <sha> <owner-lowercase> <dockerhub-username>
+# Emit comma-separated Docker Hub and GHCR image references for Docker Bake.
+# Usage: generate-image-tags.sh <variant> <base-type> <targets> <short-sha> <owner-lowercase> <dockerhub-username>
 
 set -euo pipefail
 
@@ -114,7 +114,7 @@ generate_tags() {
 
   # Remove leading comma and assign to variable
   tags="${tags#,}"
-  eval "${tags_var}=\"${tags}\""
+  printf -v "$tags_var" '%s' "$tags"
 }
 
 # Generate tags for each target
