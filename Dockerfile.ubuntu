@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Ubuntu based network-helper image
 # Supports both core and extended variants
 
-ARG UBUNTU_VER=24.04
+ARG UBUNTU_VER=26.04
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation

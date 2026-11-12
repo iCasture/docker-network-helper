@@ -2,13 +2,13 @@
 
 该仓库用于构建并发布 Network Helper 镜像，支持四种不同的发行版：
 
-- Alpine (`alpine:3.23`)
+- Alpine (`alpine:3.24`)
 
 - Debian (`debian:trixie`)
 
 - Debian-slim (`debian:trixie-slim`)
 
-- Ubuntu (`ubuntu:24.04`)
+- Ubuntu (`ubuntu:26.04`)
 
 支持以下平台：
 
@@ -20,7 +20,13 @@
 
 - `riscv64`
 
-- `i386` (仅 Alpine / Debian 版本支持，Ubuntu 官方镜像不支持 `i386`)
+  - Alpine、Debian 和 Debian Slim 的基础镜像以 `RV64GC` 为指令集基线。
+
+  - Ubuntu 26.04 的基础镜像要求 CPU 支持 `RVA23` 指令集配置。
+
+- `i386`
+
+    仅 Alpine、Debian 和 Debian Slim 镜像支持，Ubuntu 官方基础镜像不提供 `linux/386`。
 
 - ~~`mips64le`~~ ( Alpine / Ubuntu 官方镜像不支持 `mips64le`；Debian 从 `trixie` 起也不支持)
 
@@ -139,7 +145,7 @@ git-<commit-hash>-<variant>[-<target>]
 
 其中：
 
-- `<variant>`: `alpine`, `alpine3.23`, `debian`, `trixie`, `debian-slim`, `trixie-slim`, `ubuntu`, `noble`
+- `<variant>`: `alpine`, `alpine3.24`, `debian`, `trixie`, `debian-slim`, `trixie-slim`, `ubuntu`, `resolute`
 
 - `<target>`: `basic`, `standard`（默认，可省略）, `advanced`
 
@@ -147,9 +153,9 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Alpine Basic:**
 
-- `alpine-basic`, `alpine3.23-basic`, `latest-alpine-basic`, `latest-alpine3.23-basic`
+- `alpine-basic`, `alpine3.24-basic`, `latest-alpine-basic`, `latest-alpine3.24-basic`
 
-- `git-xxxxxxx-alpine-basic`, `git-xxxxxxx-alpine3.23-basic`
+- `git-xxxxxxx-alpine-basic`, `git-xxxxxxx-alpine3.24-basic`
 
 **Debian Basic:**
 
@@ -165,21 +171,21 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Ubuntu Basic:**
 
-- `ubuntu-basic`, `noble-basic`, `latest-ubuntu-basic`, `latest-noble-basic`
+- `ubuntu-basic`, `resolute-basic`, `latest-ubuntu-basic`, `latest-resolute-basic`
 
-- `git-xxxxxxx-ubuntu-basic`, `git-xxxxxxx-noble-basic`
+- `git-xxxxxxx-ubuntu-basic`, `git-xxxxxxx-resolute-basic`
 
 ### 2.3. Standard 版本标签（默认）
 
 **Alpine Standard:**
 
-- `alpine`, `alpine3.23`, `latest-alpine`, `latest-alpine3.23`
+- `alpine`, `alpine3.24`, `latest-alpine`, `latest-alpine3.24`
 
-- `alpine-standard`, `alpine3.23-standard`, `latest-alpine-standard`, `latest-alpine3.23-standard`
+- `alpine-standard`, `alpine3.24-standard`, `latest-alpine-standard`, `latest-alpine3.24-standard`
 
-- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.23`
+- `git-xxxxxxx-alpine`, `git-xxxxxxx-alpine3.24`
 
-- `git-xxxxxxx-alpine-standard`, `git-xxxxxxx-alpine3.23-standard`
+- `git-xxxxxxx-alpine-standard`, `git-xxxxxxx-alpine3.24-standard`
 
 **Debian Standard:**
 
@@ -203,21 +209,21 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Ubuntu Standard:**
 
-- `ubuntu`, `noble`, `latest-ubuntu`, `latest-noble`, `latest`
+- `ubuntu`, `resolute`, `latest-ubuntu`, `latest-resolute`, `latest`
 
-- `ubuntu-standard`, `noble-standard`, `latest-ubuntu-standard`, `latest-noble-standard`
+- `ubuntu-standard`, `resolute-standard`, `latest-ubuntu-standard`, `latest-resolute-standard`
 
-- `git-xxxxxxx-ubuntu`, `git-xxxxxxx-noble`
+- `git-xxxxxxx-ubuntu`, `git-xxxxxxx-resolute`
 
-- `git-xxxxxxx-ubuntu-standard`, `git-xxxxxxx-noble-standard`
+- `git-xxxxxxx-ubuntu-standard`, `git-xxxxxxx-resolute-standard`
 
 ### 2.4. Advanced 版本标签
 
 **Alpine Advanced:**
 
-- `alpine-advanced`, `alpine3.23-advanced`, `latest-alpine-advanced`, `latest-alpine3.23-advanced`
+- `alpine-advanced`, `alpine3.24-advanced`, `latest-alpine-advanced`, `latest-alpine3.24-advanced`
 
-- `git-xxxxxxx-alpine-advanced`, `git-xxxxxxx-alpine3.23-advanced`
+- `git-xxxxxxx-alpine-advanced`, `git-xxxxxxx-alpine3.24-advanced`
 
 **Debian Advanced:**
 
@@ -233,9 +239,9 @@ git-<commit-hash>-<variant>[-<target>]
 
 **Ubuntu Advanced:**
 
-- `ubuntu-advanced`, `noble-advanced`, `latest-ubuntu-advanced`, `latest-noble-advanced`
+- `ubuntu-advanced`, `resolute-advanced`, `latest-ubuntu-advanced`, `latest-resolute-advanced`
 
-- `git-xxxxxxx-ubuntu-advanced`, `git-xxxxxxx-noble-advanced`
+- `git-xxxxxxx-ubuntu-advanced`, `git-xxxxxxx-resolute-advanced`
 
 ## 3. 镜像构建
 
@@ -243,12 +249,12 @@ git-<commit-hash>-<variant>[-<target>]
 
 ```bash
 # GitHub Container Registry
-docker pull ghcr.io/icasture/network-helper:noble  # Standard version (default)
-docker pull ghcr.io/icasture/network-helper:noble-standard  # Explicit standard
+docker pull ghcr.io/icasture/network-helper:resolute  # Standard version (default)
+docker pull ghcr.io/icasture/network-helper:resolute-standard  # Explicit standard
 
 # Docker Hub
-docker pull icasture/network-helper:noble  # Standard version (default)
-docker pull icasture/network-helper:noble-standard  # Explicit standard
+docker pull icasture/network-helper:resolute  # Standard version (default)
+docker pull icasture/network-helper:resolute-standard  # Explicit standard
 ```
 
 注意：
@@ -274,7 +280,7 @@ docker pull icasture/network-helper:noble-standard  # Explicit standard
 ```yaml
 services:
   network-helper:
-    image: ghcr.io/icasture/network-helper:noble-basic
+    image: ghcr.io/icasture/network-helper:resolute-basic
     container_name: network-helper-basic
     ports:  # 可选, 用于将某些端口暴露给宿主机
       - '34567:5432'
@@ -297,7 +303,7 @@ networks:
 ```yaml
 services:
   network-helper-standard:
-    image: ghcr.io/icasture/network-helper:noble-standard
+    image: ghcr.io/icasture/network-helper:resolute-standard
     container_name: network-helper-standard
     ports:
       - '34567:5432'
@@ -321,7 +327,7 @@ networks:
 ```yaml
 services:
   network-helper-advanced:
-    image: ghcr.io/icasture/network-helper:noble-advanced
+    image: ghcr.io/icasture/network-helper:resolute-advanced
     container_name: network-helper-advanced
     ports:
       - '34567:5432'

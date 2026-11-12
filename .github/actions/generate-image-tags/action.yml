@@ -3,7 +3,7 @@ description: 'Generate comma-separated Docker Hub and GHCR image references for 
 
 inputs:
   variant:
-    description: 'Image variant name (e.g. alpine3.23, trixie, trixie-slim, noble)'
+    description: 'Image variant name (e.g. alpine3.24, trixie, trixie-slim, resolute)'
     required: true
   base-type:
     description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'
