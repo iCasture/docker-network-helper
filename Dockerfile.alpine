@@ -74,7 +74,7 @@ RUN apk add --no-cache \
     ca-certificates
 
 # Install dnsx
-RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 
 # # # # # # #
 # Basic stage

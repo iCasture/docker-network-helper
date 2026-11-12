@@ -82,7 +82,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install dnsx
-RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 
 # # # # # # #
 # Basic stage
