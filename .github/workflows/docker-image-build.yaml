@@ -83,15 +83,89 @@ jobs:
           ' .github/build-params.json)
           printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
 
+  build-dnsx:
+    name: Cross-compile dnsx
+    runs-on: ubuntu-latest
+    needs: prepare-build
+    env:
+      GOTOOLCHAIN: auto
+    outputs:
+      artifact-id: ${{ steps.upload-dnsx.outputs.artifact-id }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Read Go toolchain series
+        id: go-toolchain
+        run: |
+          series=$(jq -er '
+            .dnsx.goBuilderImageTag
+            | (strings | capture("\\A(?<series>[0-9]+\\.[0-9]+)(?:-[a-z][a-z0-9.-]*)?\\z").series)
+              // error("dnsx.goBuilderImageTag must specify a Go version series, e.g. 1.27 or 1.27-trixie")
+          ' .github/build-params.json)
+          printf 'version=%s.x\n' "$series" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ steps.go-toolchain.outputs.version }}
+          check-latest: true
+          cache: false
+
+      - name: Resolve dnsx version and Go cache paths
+        id: dnsx-inputs
+        run: |
+          version=$(go list -m -f '{{.Version}}' github.com/projectdiscovery/dnsx@latest)
+          base_toolchain=$(go env GOVERSION)
+          module_cache=$(go env GOMODCACHE)
+          build_cache=$(go env GOCACHE)
+          printf 'version=%s\nbase-toolchain=%s\nmodule-cache=%s\nbuild-cache=%s\n' \
+            "$version" "$base_toolchain" "$module_cache" "$build_cache" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Go modules and build results
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.dnsx-inputs.outputs.module-cache }}
+            ${{ steps.dnsx-inputs.outputs.build-cache }}
+          key: dnsx-${{ runner.os }}-${{ runner.arch }}-${{ steps.dnsx-inputs.outputs.base-toolchain }}-${{ steps.dnsx-inputs.outputs.version }}-${{ hashFiles('scripts/build-dnsx.sh', '.github/build-params.json') }}
+          restore-keys: |
+            dnsx-${{ runner.os }}-${{ runner.arch }}-${{ steps.dnsx-inputs.outputs.base-toolchain }}-
+
+      - name: Compile dnsx for the image platforms
+        shell: bash
+        env:
+          BUILD_MATRIX: ${{ needs.prepare-build.outputs.build-matrix }}
+          DNSX_VERSION: ${{ steps.dnsx-inputs.outputs.version }}
+        run: |
+          platforms=$(jq -r '[.include[]."build-platforms" | split(",")[] | gsub("^\\s+|\\s+$"; "")
+            | sub("^linux/arm64/v8$"; "linux/arm64")] | unique[]' <<< "$BUILD_MATRIX")
+          mapfile -t targets <<< "$platforms"
+          sh scripts/build-dnsx.sh dnsx-artifacts/dnsx "${targets[@]}"
+
+      - name: Upload dnsx binaries
+        id: upload-dnsx
+        uses: actions/upload-artifact@v7
+        with:
+          name: dnsx-${{ github.run_attempt }}
+          path: dnsx-artifacts/
+          if-no-files-found: error
+
   build-image-variants:
     name: Build ${{ matrix['versioned-distro-tag'] }} images
     runs-on: ubuntu-latest
-    needs: prepare-build
+    needs: [prepare-build, build-dnsx]
     strategy:
       matrix: ${{ fromJSON(needs.prepare-build.outputs.build-matrix) }}
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+
+      - name: Download dnsx binaries
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build-dnsx.outputs.artifact-id }}
+          path: dnsx-artifacts
 
       - name: Set up QEMU and Docker Buildx
         uses: ./.github/actions/setup-multiplatform-buildx
@@ -124,10 +198,14 @@ jobs:
       - name: Run Docker Bake for all image targets
         uses: docker/bake-action@v7
         with:
+          source: .
           files: docker-bake.hcl
           targets: default
           push: ${{ inputs.push-to-registries }}
-          set: ${{ !inputs.push-to-registries && '*.output=type=cacheonly' || '' }}
+          set: |
+            advanced.args.DNSX_SOURCE=dnsx-artifacts
+            advanced.contexts.dnsx-artifacts=./dnsx-artifacts
+            ${{ !inputs.push-to-registries && '*.output=type=cacheonly' || '' }}
         env:
           DISTRO: ${{ matrix.distribution }}
           DISTRO_VERSION: ${{ matrix['versioned-distro-tag'] }}

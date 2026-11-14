@@ -1,4 +1,7 @@
 {
+  "dnsx": {
+    "goBuilderImageTag": "1.27-trixie"
+  },
   "alpine": {
     "baseImageTag": "3.24",
     "buildPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386"

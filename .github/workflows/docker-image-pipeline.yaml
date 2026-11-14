@@ -19,6 +19,7 @@ on:
       - .github/actions/collect-image-build-metadata/**
       - .github/actions/generate-image-tags/**
       - .github/actions/setup-multiplatform-buildx/**
+      - scripts/build-dnsx.sh
       - scripts/setup-mitmproxy.sh
       - scripts/check-mitmproxy-platform-and-arch.sh
       - scripts/create-mitmproxy-placeholders.sh

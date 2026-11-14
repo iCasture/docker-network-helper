@@ -11,6 +11,7 @@ variable "BUILD_DATE" { default = "unknown" }
 variable "BUILD_EPOCH" { default = "unknown" }
 variable "GIT_COMMIT" { default = "unknown" }
 variable "MITMPROXY_VERSION" { default = "" }
+variable "GO_BUILDER_IMAGE" { default = "" }
 variable "TAGS_BASIC" { default = "" }
 variable "TAGS_STANDARD" { default = "" }
 variable "TAGS_ADVANCED" { default = "" }
@@ -52,5 +53,8 @@ target "standard" {
 target "advanced" {
   inherits = ["_common"]
   target = "advanced"
+  args = {
+    GO_BUILDER_IMAGE = GO_BUILDER_IMAGE != "" ? GO_BUILDER_IMAGE : null
+  }
   tags = [for t in split(",", TAGS_ADVANCED) : trimspace(t)]
 }

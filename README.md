@@ -245,6 +245,13 @@ git-<commit-hash>-<variant>[-<target>]
 
 ## 3. 镜像构建
 
+[`build-params.json`](.github/build-params.json) 中的 `dnsx.goBuilderImageTag` 是官方 `golang` 构建镜像的标签，支持 `1.27` 或 `1.27-trixie` 这类版本系列标签。CI 从标签中提取 Go 版本系列，并选用该系列的最新补丁作为起始工具链。本地直接构建 `advanced` 默认用 `golang:1.27-trixie`，加 `--pull` 会检查镜像标签是否有更新。两种构建都会在 `dnsx` 或其依赖要求更新的 Go 时按需切换工具链，并在日志中记录每份二进制实际使用的 Go 版本。本地也可显式传入配置中的标签：
+
+```sh
+docker build --pull --target advanced -f Dockerfile.alpine \
+  --build-arg "GO_BUILDER_IMAGE=golang:$(jq -er '.dnsx.goBuilderImageTag' .github/build-params.json)" .
+```
+
 镜像通过 GitHub Actions 自动构建并推送至 GitHub Container Registry (ghcr.io) 和 Docker Hub (docker.io)。支持从两个注册表拉取镜像：
 
 ```bash

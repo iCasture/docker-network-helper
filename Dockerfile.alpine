@@ -2,6 +2,8 @@
 # Supports both core and extended variants
 
 ARG BASE_IMAGE_TAG=3.24
+ARG DNSX_SOURCE=dnsx-builder
+ARG GO_BUILDER_IMAGE=golang:1.27-trixie
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation
@@ -48,33 +50,21 @@ RUN chmod +x /tmp/install-mitmproxy.sh \
 RUN TARGETPLATFORM=${TARGETPLATFORM} MITMPROXY_VERSION=${MITMPROXY_VERSION} /tmp/setup-mitmproxy.sh
 
 # # # # # # #
-# dnsx stage with Go and dnsx installation
+# dnsx binary for the target architecture
 # # # # # # #
 
-FROM alpine:${BASE_IMAGE_TAG} AS dnsx-builder
+# Standalone builds compile on the builder's native platform.
+FROM --platform=$BUILDPLATFORM ${GO_BUILDER_IMAGE} AS dnsx-builder
+ARG TARGETPLATFORM
+COPY scripts/build-dnsx.sh /tmp/build-dnsx.sh
+RUN sh /tmp/build-dnsx.sh /dnsx "$TARGETPLATFORM"
 
-# Define a build argument with a default value (0).
-# This value will be overridden by GitHub Actions using --build-arg,
-# but having a default ensures the Dockerfile can still build locally
-# without explicitly passing BUILD_EPOCH.
-ARG BUILD_DATE=unknown
-ARG BUILD_EPOCH=unknown
-ARG GIT_COMMIT=unknown
+# CI selects the named context containing the shared binaries.
+FROM ${DNSX_SOURCE} AS dnsx-source
 
-# Add a label to record the build epoch.
-# This serves as a cache-busting mechanism: each CI run injects a unique value,
-# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
-LABEL build.date="${BUILD_DATE}" \
-      build.epoch="${BUILD_EPOCH}" \
-      build.git_commit="${GIT_COMMIT}"
-
-# Install Go and build dnsx
-RUN apk add --no-cache \
-    go \
-    ca-certificates
-
-# Install dnsx
-RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+FROM scratch AS dnsx-binary
+ARG TARGETARCH
+COPY --chmod=0755 --from=dnsx-source /dnsx/${TARGETARCH}/dnsx /dnsx
 
 # # # # # # #
 # Basic stage
@@ -187,8 +177,7 @@ COPY --from=mitmproxy-builder /usr/local/bin/mitmproxy /usr/local/bin/mitmproxy
 COPY --from=mitmproxy-builder /usr/local/bin/mitmdump /usr/local/bin/mitmdump
 COPY --from=mitmproxy-builder /usr/local/bin/mitmweb /usr/local/bin/mitmweb
 
-# Copy dnsx binary from builder stage
-COPY --from=dnsx-builder /root/go/bin/dnsx /usr/local/bin/dnsx
+COPY --from=dnsx-binary /dnsx /usr/local/bin/dnsx
 
 RUN apk add --no-cache \
     htop \
