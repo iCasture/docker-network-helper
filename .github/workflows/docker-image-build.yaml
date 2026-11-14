@@ -7,6 +7,10 @@ on:
         description: Push built images to GHCR and Docker Hub
         type: boolean
         required: true
+      refresh-images:
+        description: Pull base images and rebuild without reusing BuildKit cache
+        type: boolean
+        default: false
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -211,6 +215,12 @@ jobs:
           DISTRO_VERSION: ${{ matrix['versioned-distro-tag'] }}
           BASE_IMAGE_TAG: ${{ matrix['base-image-tag'] }}
           PLATFORMS: ${{ matrix['build-platforms'] }}
+          REFRESH_IMAGES: ${{ inputs.refresh-images }}
+          IMPORT_IMAGE_CACHE: ${{ !inputs.refresh-images }}
+          EXPORT_IMAGE_CACHE: >-
+            ${{ inputs.push-to-registries
+                && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+                && (github.event_name == 'push' || inputs.refresh-images) }}
           MAINTAINER: ${{ steps.image-metadata.outputs['owner'] }}
           BUILD_DATE: ${{ steps.image-metadata.outputs.date }}
           BUILD_EPOCH: ${{ github.run_id }}-${{ github.run_attempt }}

@@ -245,6 +245,10 @@ git-<commit-hash>-<variant>[-<target>]
 
 ## 3. 镜像构建
 
+月度任务和手动运行会重新拉取基础镜像、跳过 BuildKit 缓存并重新执行系统软件包升级和安装。需要在月度任务之前获取已进入软件源的安全更新时，可以在默认分支手动运行 **Docker Image Validation and Publishing**。
+
+默认分支上的 `push` 发布会读取并更新 GitHub Actions 构建缓存，缓存缺失时会重新构建相关步骤并补回缓存。月度任务和默认分支上的手动运行会强制重建并写回缓存。PR 验证、版本标签和 GitHub Release 触发的构建只读取缓存。缓存按发行版和镜像档位区分，由 GitHub Actions 按仓库设置清理。
+
 [`build-params.json`](.github/build-params.json) 中的 `dnsx.goBuilderImageTag` 是官方 `golang` 构建镜像的标签，支持 `1.27` 或 `1.27-trixie` 这类版本系列标签。CI 从标签中提取 Go 版本系列，并选用该系列的最新补丁作为起始工具链。本地直接构建 `advanced` 默认用 `golang:1.27-trixie`，加 `--pull` 会检查镜像标签是否有更新。两种构建都会在 `dnsx` 或其依赖要求更新的 Go 时按需切换工具链，并在日志中记录每份二进制实际使用的 Go 版本。本地也可显式传入配置中的标签：
 
 ```sh

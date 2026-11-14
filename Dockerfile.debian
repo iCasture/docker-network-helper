@@ -11,21 +11,6 @@ ARG GO_BUILDER_IMAGE=golang:1.27-trixie
 
 FROM debian:${BASE_IMAGE_TAG} AS mitmproxy-builder
 
-# Define a build argument with a default value (0).
-# This value will be overridden by GitHub Actions using --build-arg,
-# but having a default ensures the Dockerfile can still build locally
-# without explicitly passing BUILD_EPOCH.
-ARG BUILD_DATE=unknown
-ARG BUILD_EPOCH=unknown
-ARG GIT_COMMIT=unknown
-
-# Add a label to record the build epoch.
-# This serves as a cache-busting mechanism: each CI run injects a unique value,
-# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
-LABEL build.date="${BUILD_DATE}" \
-      build.epoch="${BUILD_EPOCH}" \
-      build.git_commit="${GIT_COMMIT}"
-
 # Enable Docker buildx platform detection
 ARG TARGETPLATFORM
 
@@ -33,7 +18,8 @@ ARG TARGETPLATFORM
 ARG MITMPROXY_VERSION
 
 # Install dependencies for mitmproxy installation
-RUN apt-get update && \
+RUN apt-get update --error-on=any && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --with-new-pkgs && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bash \
     curl \
@@ -78,30 +64,23 @@ COPY --chmod=0755 --from=dnsx-source /dnsx/${TARGETARCH}/dnsx /dnsx
 
 FROM debian:${BASE_IMAGE_TAG} AS basic
 
-# Define a build argument with a default value (0).
-# This value will be overridden by GitHub Actions using --build-arg,
-# but having a default ensures the Dockerfile can still build locally
-# without explicitly passing BUILD_EPOCH.
+# Define image metadata defaults for direct Dockerfile builds.
+# CI can override these build arguments through Bake.
 ARG MAINTAINER=unknown
 ARG DISTRO=debian
 ARG DISTRO_VERSION=unknown
 ARG BUILD_TARGET=basic
 ARG PLATFORMS=unknown
-ARG BUILD_DATE=unknown
-ARG BUILD_EPOCH=unknown
-ARG GIT_COMMIT=unknown
 
-# Add a label to record the build epoch.
-# This serves as a cache-busting mechanism: each CI run injects a unique value,
-# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
+# Keep metadata keys available in direct builds. Bake supplies the per-run values.
 LABEL maintainer="${MAINTAINER}" \
       build.distro="${DISTRO}" \
       build.distro_version="${DISTRO_VERSION}" \
       build.target="${BUILD_TARGET}" \
       build.platforms="${PLATFORMS}" \
-      build.date="${BUILD_DATE}" \
-      build.epoch="${BUILD_EPOCH}" \
-      build.git_commit="${GIT_COMMIT}"
+      build.date="unknown" \
+      build.epoch="unknown" \
+      build.git_commit="unknown"
 
 # Keep the container running by default so it can be used as a toolbox.
 CMD ["tail", "-f", "/dev/null"]
@@ -111,7 +90,8 @@ CMD ["tail", "-f", "/dev/null"]
 # Here we switch to /bin/bash instead.
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-RUN apt-get update && \
+RUN apt-get update --error-on=any && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --with-new-pkgs && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     bash \
     ca-certificates \
@@ -130,24 +110,11 @@ RUN apt-get update && \
 
 FROM basic AS standard
 
-# Define a build argument with a default value (0).
-# This value will be overridden by GitHub Actions using --build-arg,
-# but having a default ensures the Dockerfile can still build locally
-# without explicitly passing BUILD_EPOCH.
 ARG BUILD_TARGET=standard
-ARG BUILD_DATE=unknown
-ARG BUILD_EPOCH=unknown
-ARG GIT_COMMIT=unknown
 
-# Add a label to record the build epoch.
-# This serves as a cache-busting mechanism: each CI run injects a unique value,
-# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
-LABEL build.target="${BUILD_TARGET}" \
-      build.date="${BUILD_DATE}" \
-      build.epoch="${BUILD_EPOCH}" \
-      build.git_commit="${GIT_COMMIT}"
+LABEL build.target="${BUILD_TARGET}"
 
-RUN apt-get update && \
+RUN apt-get update --error-on=any && \
     echo "iperf3 iperf3/start_daemon boolean false" | debconf-set-selections && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ethtool \
@@ -166,22 +133,9 @@ RUN apt-get update && \
 
 FROM standard AS advanced
 
-# Define a build argument with a default value (0).
-# This value will be overridden by GitHub Actions using --build-arg,
-# but having a default ensures the Dockerfile can still build locally
-# without explicitly passing BUILD_EPOCH.
 ARG BUILD_TARGET=advanced
-ARG BUILD_DATE=unknown
-ARG BUILD_EPOCH=unknown
-ARG GIT_COMMIT=unknown
 
-# Add a label to record the build epoch.
-# This serves as a cache-busting mechanism: each CI run injects a unique value,
-# which forces Docker to rebuild layers even if the Dockerfile hasn't changed.
-LABEL build.target="${BUILD_TARGET}" \
-      build.date="${BUILD_DATE}" \
-      build.epoch="${BUILD_EPOCH}" \
-      build.git_commit="${GIT_COMMIT}"
+LABEL build.target="${BUILD_TARGET}"
 
 # Copy mitmproxy binaries from mitmproxy builder stage
 # Note: These will be either real binaries or placeholder scripts depending on architecture
@@ -191,7 +145,7 @@ COPY --from=mitmproxy-builder /usr/local/bin/mitmweb /usr/local/bin/mitmweb
 
 COPY --from=dnsx-binary /dnsx /usr/local/bin/dnsx
 
-RUN apt-get update && \
+RUN apt-get update --error-on=any && \
     echo "wireshark-common wireshark-common/install-setuid boolean false" | debconf-set-selections && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     htop \

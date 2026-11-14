@@ -53,12 +53,16 @@ jobs:
   publish-images:
     name: Publish Docker images
     if: github.event_name != 'pull_request'
+    concurrency:
+      group: docker-image-publishing
+      queue: max
     permissions:
       contents: read
       packages: write
     uses: ./.github/workflows/docker-image-build.yaml
     with:
       push-to-registries: true
+      refresh-images: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
