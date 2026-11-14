@@ -5,6 +5,7 @@
 variable "MAINTAINER" { default = "unknown" }
 variable "DISTRO" { default = "unknown" }
 variable "DISTRO_VERSION" { default = "unknown" }
+variable "BASE_IMAGE_TAG" { default = "" }
 variable "PLATFORMS" { default = "" }
 variable "BUILD_DATE" { default = "unknown" }
 variable "BUILD_EPOCH" { default = "unknown" }
@@ -19,56 +20,37 @@ group "default" {
   targets = ["basic", "standard", "advanced"]
 }
 
-target "basic" {
+target "_common" {
   context = "."
   dockerfile = "./Dockerfile.${DISTRO}"
-  target = "basic"
   platforms = [for p in split(",", PLATFORMS) : trimspace(p)]
-  tags = [for t in split(",", TAGS_BASIC) : trimspace(t)]
   args = {
     MAINTAINER = "${MAINTAINER}"
     DISTRO = "${DISTRO}"
     DISTRO_VERSION = "${DISTRO_VERSION}"
+    BASE_IMAGE_TAG = BASE_IMAGE_TAG != "" ? BASE_IMAGE_TAG : null
     PLATFORMS = "${PLATFORMS}"
     BUILD_DATE = "${BUILD_DATE}"
     BUILD_EPOCH = "${BUILD_EPOCH}"
     GIT_COMMIT = "${GIT_COMMIT}"
     MITMPROXY_VERSION = "${MITMPROXY_VERSION}"
   }
+}
+
+target "basic" {
+  inherits = ["_common"]
+  target = "basic"
+  tags = [for t in split(",", TAGS_BASIC) : trimspace(t)]
 }
 
 target "standard" {
-  context = "."
-  dockerfile = "./Dockerfile.${DISTRO}"
+  inherits = ["_common"]
   target = "standard"
-  platforms = [for p in split(",", PLATFORMS) : trimspace(p)]
   tags = [for t in split(",", TAGS_STANDARD) : trimspace(t)]
-  args = {
-    MAINTAINER = "${MAINTAINER}"
-    DISTRO = "${DISTRO}"
-    DISTRO_VERSION = "${DISTRO_VERSION}"
-    PLATFORMS = "${PLATFORMS}"
-    BUILD_DATE = "${BUILD_DATE}"
-    BUILD_EPOCH = "${BUILD_EPOCH}"
-    GIT_COMMIT = "${GIT_COMMIT}"
-    MITMPROXY_VERSION = "${MITMPROXY_VERSION}"
-  }
 }
 
 target "advanced" {
-  context = "."
-  dockerfile = "./Dockerfile.${DISTRO}"
+  inherits = ["_common"]
   target = "advanced"
-  platforms = [for p in split(",", PLATFORMS) : trimspace(p)]
   tags = [for t in split(",", TAGS_ADVANCED) : trimspace(t)]
-  args = {
-    MAINTAINER = "${MAINTAINER}"
-    DISTRO = "${DISTRO}"
-    DISTRO_VERSION = "${DISTRO_VERSION}"
-    PLATFORMS = "${PLATFORMS}"
-    BUILD_DATE = "${BUILD_DATE}"
-    BUILD_EPOCH = "${BUILD_EPOCH}"
-    GIT_COMMIT = "${GIT_COMMIT}"
-    MITMPROXY_VERSION = "${MITMPROXY_VERSION}"
-  }
 }

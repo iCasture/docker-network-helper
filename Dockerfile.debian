@@ -1,13 +1,13 @@
 # Multi-stage Dockerfile for Debian trixie based network-helper image
 # Supports both core and extended variants
 
-ARG DEBIAN_VER=trixie
+ARG BASE_IMAGE_TAG=trixie
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation
 # # # # # # #
 
-FROM debian:${DEBIAN_VER} AS mitmproxy-builder
+FROM debian:${BASE_IMAGE_TAG} AS mitmproxy-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -57,7 +57,7 @@ RUN TARGETPLATFORM=${TARGETPLATFORM} MITMPROXY_VERSION=${MITMPROXY_VERSION} /tmp
 # dnsx stage with Go and dnsx installation
 # # # # # # #
 
-FROM debian:${DEBIAN_VER} AS dnsx-builder
+FROM debian:${BASE_IMAGE_TAG} AS dnsx-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -88,7 +88,7 @@ RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@lat
 # Basic stage
 # # # # # # #
 
-FROM debian:${DEBIAN_VER} AS basic
+FROM debian:${BASE_IMAGE_TAG} AS basic
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,

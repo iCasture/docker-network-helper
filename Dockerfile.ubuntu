@@ -1,13 +1,13 @@
 # Multi-stage Dockerfile for Ubuntu based network-helper image
 # Supports both core and extended variants
 
-ARG UBUNTU_VER=26.04
+ARG BASE_IMAGE_TAG=26.04
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation
 # # # # # # #
 
-FROM ubuntu:${UBUNTU_VER} AS mitmproxy-builder
+FROM ubuntu:${BASE_IMAGE_TAG} AS mitmproxy-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -57,7 +57,7 @@ RUN TARGETPLATFORM=${TARGETPLATFORM} MITMPROXY_VERSION=${MITMPROXY_VERSION} /tmp
 # dnsx stage with Go and dnsx installation
 # # # # # # #
 
-FROM ubuntu:${UBUNTU_VER} AS dnsx-builder
+FROM ubuntu:${BASE_IMAGE_TAG} AS dnsx-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -88,7 +88,7 @@ RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@lat
 # Basic stage
 # # # # # # #
 
-FROM ubuntu:${UBUNTU_VER} AS basic
+FROM ubuntu:${BASE_IMAGE_TAG} AS basic
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,

@@ -2,11 +2,11 @@ name: 'Generate image registry tags'
 description: 'Generate comma-separated Docker Hub and GHCR image references for the selected Docker Bake targets'
 
 inputs:
-  variant:
-    description: 'Image variant name (e.g. alpine3.24, trixie, trixie-slim, resolute)'
+  versioned-distro-tag:
+    description: 'Distribution version used in published tags (e.g. alpine3.24, trixie, trixie-slim, resolute)'
     required: true
-  base-type:
-    description: 'Base image type (e.g. alpine, debian, debian-slim, ubuntu)'
+  distro-tag:
+    description: 'Distribution name used in rolling tags (e.g. alpine, debian, debian-slim, ubuntu)'
     required: true
   targets:
     description: 'Comma-separated list of build targets (e.g. basic,standard,advanced)'
@@ -42,16 +42,16 @@ runs:
       id: generate-tags
       shell: bash
       env:
-        IMAGE_VARIANT: ${{ inputs.variant }}
-        BASE_TYPE: ${{ inputs.base-type }}
+        VERSIONED_DISTRO_TAG: ${{ inputs.versioned-distro-tag }}
+        DISTRO_TAG: ${{ inputs.distro-tag }}
         BUILD_TARGETS: ${{ inputs.targets }}
         SHORT_SHA: ${{ inputs.sha-short }}
         OWNER_LOWERCASE: ${{ inputs.owner-lowercase }}
         DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
       run: |
         "$GITHUB_ACTION_PATH/generate-image-tags.sh" \
-          "$IMAGE_VARIANT" \
-          "$BASE_TYPE" \
+          "$VERSIONED_DISTRO_TAG" \
+          "$DISTRO_TAG" \
           "$BUILD_TARGETS" \
           "$SHORT_SHA" \
           "$OWNER_LOWERCASE" \

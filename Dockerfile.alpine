@@ -1,13 +1,13 @@
 # Multi-stage Dockerfile for Alpine based network-helper image
 # Supports both core and extended variants
 
-ARG ALPINE_VER=3.24
+ARG BASE_IMAGE_TAG=3.24
 
 # # # # # # #
 # mitmproxy stage with mitmproxy installation
 # # # # # # #
 
-FROM alpine:${ALPINE_VER} AS mitmproxy-builder
+FROM alpine:${BASE_IMAGE_TAG} AS mitmproxy-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -51,7 +51,7 @@ RUN TARGETPLATFORM=${TARGETPLATFORM} MITMPROXY_VERSION=${MITMPROXY_VERSION} /tmp
 # dnsx stage with Go and dnsx installation
 # # # # # # #
 
-FROM alpine:${ALPINE_VER} AS dnsx-builder
+FROM alpine:${BASE_IMAGE_TAG} AS dnsx-builder
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,
@@ -80,7 +80,7 @@ RUN GOTOOLCHAIN=auto go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@lat
 # Basic stage
 # # # # # # #
 
-FROM alpine:${ALPINE_VER} AS basic
+FROM alpine:${BASE_IMAGE_TAG} AS basic
 
 # Define a build argument with a default value (0).
 # This value will be overridden by GitHub Actions using --build-arg,

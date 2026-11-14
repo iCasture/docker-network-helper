@@ -1,26 +1,22 @@
 #!/bin/bash
 
 # Emit comma-separated Docker Hub and GHCR image references for Docker Bake.
-# Usage: generate-image-tags.sh <variant> <base-type> <targets> <short-sha> <owner-lowercase> <dockerhub-username>
+# Usage: generate-image-tags.sh <versioned-distro-tag> <distro-tag> <targets> <short-sha> <owner-lowercase> <dockerhub-username>
 
 set -euo pipefail
 
 # Input parameters
-VARIANT="$1"
-BASE_TYPE="$2"
+VERSIONED_DISTRO_TAG="$1"
+DISTRO_TAG="$2"
 TARGETS="$3"
-SHA="$4"
+SHORT_SHA="$4"
 OWNER_LOWERCASE="$5"
 DOCKERHUB_USERNAME="$6"
 
 # Initialize variables
 DOCKERHUB_URL="docker.io/${DOCKERHUB_USERNAME}/network-helper"
 GHCR_URL="ghcr.io/${OWNER_LOWERCASE}/network-helper"
-SHA_PREFIX="git-${SHA}"
-
-# Set base variant names using passed base-type
-BASE_VARIANT="${BASE_TYPE}"
-BASE_VARIANT_FULL="${VARIANT}"
+SHA_PREFIX="git-${SHORT_SHA}"
 
 # Parse targets and trim whitespace
 IFS=',' read -ra TARGETS_RAW <<< "${TARGETS}"
@@ -48,68 +44,68 @@ generate_tags() {
 
   if [ "$target" = "basic" ]; then
     # Basic image tags with -basic suffix
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT}-basic"
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-basic"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-basic"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-basic"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT}-basic"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-basic"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT}-basic"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT_FULL}-basic"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT}-basic"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-basic"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT}-basic"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-basic"
+    tags="${tags},${DOCKERHUB_URL}:${DISTRO_TAG}-basic"
+    tags="${tags},${DOCKERHUB_URL}:${VERSIONED_DISTRO_TAG}-basic"
+    tags="${tags},${DOCKERHUB_URL}:latest-${DISTRO_TAG}-basic"
+    tags="${tags},${DOCKERHUB_URL}:latest-${VERSIONED_DISTRO_TAG}-basic"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${DISTRO_TAG}-basic"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:${DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:${VERSIONED_DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:latest-${DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:latest-${VERSIONED_DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${DISTRO_TAG}-basic"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-basic"
 
   elif [ "$target" = "standard" ]; then
     # Standard image tags without suffix (default tags)
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT}"
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT}"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT}"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT}"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT_FULL}"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT}"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT_FULL}"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT}"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}"
+    tags="${tags},${DOCKERHUB_URL}:${DISTRO_TAG}"
+    tags="${tags},${DOCKERHUB_URL}:${VERSIONED_DISTRO_TAG}"
+    tags="${tags},${DOCKERHUB_URL}:latest-${DISTRO_TAG}"
+    tags="${tags},${DOCKERHUB_URL}:latest-${VERSIONED_DISTRO_TAG}"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${DISTRO_TAG}"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:${DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:${VERSIONED_DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:latest-${DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:latest-${VERSIONED_DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${DISTRO_TAG}"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}"
 
     # Standard image tags with -standard suffix
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT}-standard"
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-standard"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-standard"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-standard"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT}-standard"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-standard"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT}-standard"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT_FULL}-standard"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT}-standard"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-standard"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT}-standard"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-standard"
+    tags="${tags},${DOCKERHUB_URL}:${DISTRO_TAG}-standard"
+    tags="${tags},${DOCKERHUB_URL}:${VERSIONED_DISTRO_TAG}-standard"
+    tags="${tags},${DOCKERHUB_URL}:latest-${DISTRO_TAG}-standard"
+    tags="${tags},${DOCKERHUB_URL}:latest-${VERSIONED_DISTRO_TAG}-standard"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${DISTRO_TAG}-standard"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:${DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:${VERSIONED_DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:latest-${DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:latest-${VERSIONED_DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${DISTRO_TAG}-standard"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-standard"
 
     # Add latest tag for ubuntu-based standard images
-    if [ "${BASE_VARIANT}" = "ubuntu" ]; then
+    if [ "${DISTRO_TAG}" = "ubuntu" ]; then
       tags="${tags},${DOCKERHUB_URL}:latest"
       tags="${tags},${GHCR_URL}:latest"
     fi
 
   elif [ "$target" = "advanced" ]; then
     # Advanced image tags with -advanced suffix
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT}-advanced"
-    tags="${tags},${DOCKERHUB_URL}:${BASE_VARIANT_FULL}-advanced"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT}-advanced"
-    tags="${tags},${DOCKERHUB_URL}:latest-${BASE_VARIANT_FULL}-advanced"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT}-advanced"
-    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-advanced"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT}-advanced"
-    tags="${tags},${GHCR_URL}:${BASE_VARIANT_FULL}-advanced"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT}-advanced"
-    tags="${tags},${GHCR_URL}:latest-${BASE_VARIANT_FULL}-advanced"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT}-advanced"
-    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${BASE_VARIANT_FULL}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:${DISTRO_TAG}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:${VERSIONED_DISTRO_TAG}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:latest-${DISTRO_TAG}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:latest-${VERSIONED_DISTRO_TAG}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${DISTRO_TAG}-advanced"
+    tags="${tags},${DOCKERHUB_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:${DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:${VERSIONED_DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:latest-${DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:latest-${VERSIONED_DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${DISTRO_TAG}-advanced"
+    tags="${tags},${GHCR_URL}:${SHA_PREFIX}-${VERSIONED_DISTRO_TAG}-advanced"
   fi
 
   # Remove leading comma and assign to variable
@@ -138,6 +134,19 @@ if [ -n "${TAGS_ADVANCED}" ]; then
     ALL_TAGS="${TAGS_ADVANCED}"
   fi
 fi
+
+# Validate the complete tags after adding Git SHA, latest, and target affixes.
+LC_ALL=C
+docker_tag_pattern='^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'
+IFS=',' read -ra image_references <<< "$ALL_TAGS"
+for image_reference in "${image_references[@]}"; do
+  repository_and_tag="${image_reference##*/}"
+  published_tag="${repository_and_tag#*:}"
+  if [[ ! $published_tag =~ $docker_tag_pattern ]]; then
+    printf 'Invalid Docker image tag in %s (tags must be 1 to 128 characters and use Docker tag syntax)\n' "$image_reference" >&2
+    exit 1
+  fi
+done
 
 # Output all tags as comma-separated list
 echo "tags=${ALL_TAGS}"

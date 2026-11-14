@@ -1,8 +1,14 @@
 {
-  "alpineVersion": "3.24",
-  "debianVersion": "trixie",
-  "ubuntuVersion": "resolute",
-  "alpinePlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386",
-  "debianPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386",
-  "ubuntuPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64"
+  "alpine": {
+    "baseImageTag": "3.24",
+    "buildPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386"
+  },
+  "debian": {
+    "baseImageTag": "trixie",
+    "buildPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64,linux/386"
+  },
+  "ubuntu": {
+    "baseImageTag": "resolute",
+    "buildPlatforms": "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64"
+  }
 }

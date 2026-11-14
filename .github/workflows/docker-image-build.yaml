@@ -33,35 +33,58 @@ jobs:
       - name: Generate the distribution and platform matrix
         id: generate-build-matrix
         run: |
-          params=$(cat .github/build-params.json)
-          alpineBaseVersion=$(jq -r '.alpineVersion' <<<"$params")
-          debianBaseVersion=$(jq -r '.debianVersion' <<<"$params")
-          ubuntuBaseVersion=$(jq -r '.ubuntuVersion' <<<"$params")
-          alpinePlatforms=$(jq -r '.alpinePlatforms' <<<"$params")
-          debianPlatforms=$(jq -r '.debianPlatforms' <<<"$params")
-          ubuntuPlatforms=$(jq -r '.ubuntuPlatforms' <<<"$params")
+          matrix=$(jq -ces '
+            def require_image_tag($field):
+              if type == "string" and test("\\A[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}\\z") then .
+              else error($field + " must be a valid Docker image tag")
+              end;
 
-          matrix=$(jq -n --arg alpineBaseVersion "$alpineBaseVersion" \
-                         --arg debianBaseVersion "$debianBaseVersion" \
-                         --arg ubuntuBaseVersion "$ubuntuBaseVersion" \
-                         --arg alpinePlatforms "$alpinePlatforms" \
-                         --arg debianPlatforms "$debianPlatforms" \
-                         --arg ubuntuPlatforms "$ubuntuPlatforms" \
-            '{include: [
-              { "variant": ("alpine" + $alpineBaseVersion),  "base-type": "alpine",      "platforms":$alpinePlatforms },
-              { "variant": $debianBaseVersion,               "base-type": "debian",      "platforms":$debianPlatforms },
-              { "variant": ($debianBaseVersion + "-slim"),   "base-type": "debian-slim", "platforms":$debianPlatforms },
-              { "variant": $ubuntuBaseVersion,               "base-type": "ubuntu",      "platforms":$ubuntuPlatforms }
-            ]}')
+            def require_build_platforms($field):
+              if type == "string" and (split(",") | length > 0 and all(test("[^[:space:]]"))) then .
+              else error($field + " must be a comma-separated string with no empty platforms")
+              end;
 
-          {
-            echo "matrix<<EOF"
-            echo "$matrix"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+            if length == 1 and (.[0] | type == "object") then .[0]
+            else error("build-params.json must contain exactly one JSON object")
+            end |
+
+            (.alpine.baseImageTag | require_image_tag("alpine.baseImageTag")) as $alpineBaseImageTag |
+            (.debian.baseImageTag | require_image_tag("debian.baseImageTag")) as $debianBaseImageTag |
+            (.ubuntu.baseImageTag | require_image_tag("ubuntu.baseImageTag")) as $ubuntuBaseImageTag |
+            ($debianBaseImageTag + "-slim" | require_image_tag("Debian slim base image tag")) as $debianSlimBaseImageTag |
+            (.debian.buildPlatforms | require_build_platforms("debian.buildPlatforms")) as $debianBuildPlatforms |
+
+            {include: [
+              {
+                "distribution": "alpine",
+                "base-image-tag": $alpineBaseImageTag,
+                "versioned-distro-tag": "alpine\($alpineBaseImageTag)",
+                "build-platforms": (.alpine.buildPlatforms | require_build_platforms("alpine.buildPlatforms"))
+              },
+              {
+                "distribution": "debian",
+                "base-image-tag": $debianBaseImageTag,
+                "versioned-distro-tag": $debianBaseImageTag,
+                "build-platforms": $debianBuildPlatforms
+              },
+              {
+                "distribution": "debian-slim",
+                "base-image-tag": $debianSlimBaseImageTag,
+                "versioned-distro-tag": $debianSlimBaseImageTag,
+                "build-platforms": $debianBuildPlatforms
+              },
+              {
+                "distribution": "ubuntu",
+                "base-image-tag": $ubuntuBaseImageTag,
+                "versioned-distro-tag": $ubuntuBaseImageTag,
+                "build-platforms": (.ubuntu.buildPlatforms | require_build_platforms("ubuntu.buildPlatforms"))
+              }
+            ]}
+          ' .github/build-params.json)
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
 
   build-image-variants:
-    name: Build ${{ matrix.variant }} images
+    name: Build ${{ matrix['versioned-distro-tag'] }} images
     runs-on: ubuntu-latest
     needs: prepare-build
     strategy:
@@ -91,8 +114,8 @@ jobs:
         id: registry-tags
         uses: ./.github/actions/generate-image-tags
         with:
-          variant: ${{ matrix.variant }}
-          base-type: ${{ matrix['base-type'] }}
+          versioned-distro-tag: ${{ matrix['versioned-distro-tag'] }}
+          distro-tag: ${{ matrix.distribution }}
           targets: basic,standard,advanced
           sha-short: ${{ steps.image-metadata.outputs['sha-short'] }}
           owner-lowercase: ${{ steps.image-metadata.outputs['owner-lowercase'] }}
@@ -106,9 +129,10 @@ jobs:
           push: ${{ inputs.push-to-registries }}
           set: ${{ !inputs.push-to-registries && '*.output=type=cacheonly' || '' }}
         env:
-          DISTRO: ${{ matrix['base-type'] }}
-          DISTRO_VERSION: ${{ matrix.variant }}
-          PLATFORMS: ${{ matrix.platforms }}
+          DISTRO: ${{ matrix.distribution }}
+          DISTRO_VERSION: ${{ matrix['versioned-distro-tag'] }}
+          BASE_IMAGE_TAG: ${{ matrix['base-image-tag'] }}
+          PLATFORMS: ${{ matrix['build-platforms'] }}
           MAINTAINER: ${{ steps.image-metadata.outputs['owner'] }}
           BUILD_DATE: ${{ steps.image-metadata.outputs.date }}
           BUILD_EPOCH: ${{ github.run_id }}-${{ github.run_attempt }}
