@@ -40,6 +40,9 @@ jobs:
   validate-pr-images:
     name: Validate PR images
     if: github.event_name == 'pull_request'
+    concurrency:
+      group: docker-image-validation-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
     uses: ./.github/workflows/docker-image-build.yaml
