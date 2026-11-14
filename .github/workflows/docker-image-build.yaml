@@ -134,6 +134,7 @@ jobs:
             ${{ steps.dnsx-inputs.outputs.build-cache }}
           key: dnsx-${{ runner.os }}-${{ runner.arch }}-${{ steps.dnsx-inputs.outputs.base-toolchain }}-${{ steps.dnsx-inputs.outputs.version }}-${{ hashFiles('scripts/build-dnsx.sh', '.github/build-params.json') }}
           restore-keys: |
+            dnsx-${{ runner.os }}-${{ runner.arch }}-${{ steps.dnsx-inputs.outputs.base-toolchain }}-${{ steps.dnsx-inputs.outputs.version }}-
             dnsx-${{ runner.os }}-${{ runner.arch }}-${{ steps.dnsx-inputs.outputs.base-toolchain }}-
 
       - name: Compile dnsx for the image platforms
